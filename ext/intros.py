@@ -59,6 +59,43 @@ class Intro:
 
         return cls(owner_id)
 
+class Intr:
+
+    """
+    Intro is a type of object to be stored in the mongodb
+    
+    {
+        bio: str,
+        footer: str,
+        url: str,
+
+        owner_id: int,
+        role_id: int,
+
+        meta: {
+            embed_id: int
+        }
+    }
+
+    """
+
+    def __init__(self, owner_id, role_id, bio="Write bio here", footer="", url="", meta={}):
+
+        self.bio = bio
+        self.footer = footer
+        self.url = url
+
+        self.owner_id = owner_id
+        self.role_id = role_id
+
+        self.meta = meta
+
+    async def edit(self, bio=None, footer=None, url=None):
+
+        """Edit internal properties and save to database"""
+
+        pass
+
 class Form(discord.ui.Modal, title="Intro Form"):
     """Basic modal for editing the intro"""
 
@@ -171,5 +208,5 @@ class Main(app_commands.Group):
 
 async def setup(bot):
     await bot.add_cog(Listener(bot))
-    bot.tree.add_command(Main(bot), guild=bot.guild)
+    bot.tree.add_command(Main(bot))
 

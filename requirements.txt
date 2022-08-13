@@ -1,0 +1,18 @@
+aiohttp==3.8.1
+aiosignal==1.2.0
+async-timeout==4.0.2
+attrs==22.1.0
+charset-normalizer==2.1.0
+commonmark==0.9.1
+discord.py @ git+https://github.com/Rapptz/discord.py.git@842d6b4fbb2764f6b36914e920e5ef252a59f6f7
+dnspython==2.2.1
+frozenlist==1.3.1
+idna==3.3
+motor==3.0.0
+multidict==6.0.2
+Pygments==2.12.0
+pymongo==4.2.0
+python-dotenv==0.20.0
+rich==12.5.1
+typing-extensions==4.3.0
+yarl==1.8.1
