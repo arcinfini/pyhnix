@@ -8,6 +8,7 @@ from discord import app_commands, Interaction
 import discord, discord.ui as dui
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 """
 embedb build [,m_id[, index]]
@@ -507,6 +508,8 @@ class Main(app_commands.Group):
         super().__init__(name="embedb")
 
         self.bot = bot
+
+        logger.info("%s initialized" % __name__)
 
     @app_commands.command(name="build")
     async def _build(

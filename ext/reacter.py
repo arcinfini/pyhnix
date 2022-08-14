@@ -6,7 +6,7 @@ import discord.utils as dutils
 import discord
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 """
 
 TODO: Consider errors/circumstances when multiple people are attempting to edit the button view at a time
@@ -185,9 +185,10 @@ class RoleSelectorView(discord.ui.View):
 class Main(app_commands.Group):
 
     def __init__(self, bot):
-        super().__init__(name="roleb")
+        super().__init__(name="reacter")
 
         self.bot = bot
+        logger.info("%s initialized" % __name__)
 
     @app_commands.command(name="create")
     async def _create(self, interaction: Interaction):

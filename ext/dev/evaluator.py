@@ -7,6 +7,9 @@ from discord.ext import commands
 from discord import Interaction
 import discord
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 # from utils.checks import is_botadmin
 
 CODESTRING = r".*(eval|aexec)\s+?`{3}(py)?\n?(?P<code>[\s\S]*?)`{3}\n?\s*(?P<content>[\s\S]*)"
@@ -106,10 +109,9 @@ class Main(commands.Cog, name='code'):
     
     def __init__(self, bot):
         self.bot:commands.Bot = bot
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+        
 
-        self.logger.info("%s initialized" % __name__)
+        logger.info("%s initialized" % __name__)
 
     @commands.command(aliases=['aexec'])
     # @is_botadmin()

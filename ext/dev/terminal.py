@@ -1,11 +1,17 @@
+import logging
 
 from discord import app_commands, Interaction
 from discord.ext import commands
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class Main(commands.Cog, name="terminal"):
 
     def __init__(self, bot):
         self.bot = bot
+
+        logger.info("%s initialized" % __name__)
 
     @commands.command()
     async def sync_apps(self, ctx:commands.Context):
@@ -28,6 +34,14 @@ class Main(commands.Cog, name="terminal"):
         contains = lambda x: current in x
         x = lambda x: app_commands.Choice(name=x, value=x)
         return [x(value) for value in filter(contains, self.bot.extensions)]
+
+    @app_commands.command(name="kill")
+    async def _kill(self, interaction: Interaction):
+        
+        await interaction.response.send_message("TERMINATING")
+        
+        
+        await interaction.client.close()
 
 
 async def setup(bot):
