@@ -1,6 +1,5 @@
 
 import argparse
-import asyncio
 import logging
 from logging import handlers
 import os
@@ -28,6 +27,7 @@ def logger_setup(args):
         os.mkdir(".records")
     
     root = logging.getLogger()
+    root.setLevel(logging.INFO)
     logging.getLogger("discord").setLevel(logging.ERROR)
     logging.getLogger("discord.http").setLevel(logging.ERROR)
 
@@ -46,6 +46,7 @@ def logger_setup(args):
     file_handler.setFormatter(file_formatter)
 
     if args.debug:
+        root.setLevel(logging.DEBUG)
         console_handler.setLevel(logging.DEBUG)
         file_handler.setLevel(logging.DEBUG)
 

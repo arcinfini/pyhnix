@@ -1,6 +1,22 @@
+
+# setting files
 /.records
-*.sqlite
-.venv
-.vscode
+/.venv
+/.vscode
+
+# python cache
+__pycache__/
+
+# env file
 .env
-/__pycache__
+
+# excess database files
+*.sqlite
+
+# docker files
+docker-compose.yml
+Dockerfile
+
+# git files
+/.git
+.gitignore
