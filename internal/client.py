@@ -1,15 +1,10 @@
-import logging
-from os import getenv
+import logging, signal, asyncio
 from pathlib import Path
 
 from discord.ext import commands
 import discord
 
-from dotenv import load_dotenv
-
 from internal.tree import PhoenixTree
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +22,13 @@ class Phoenix(commands.Bot):
 
     async def setup_hook(self):
         await self.__load_extensions("ext")
+
+        # Not sure if this actually works.
+        def handle_close(*args, **kwargs):
+            print(args, kwargs)
+            asyncio.ensure_future(self.close())
+
+        signal.signal(signal.SIGTERM, handle_close)
 
     async def __load_extensions(self, dir):
         """Recursively load extensions from the given directory"""
