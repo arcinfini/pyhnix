@@ -1,0 +1,36 @@
+version: "3"
+services:  
+
+  backend:
+    container_name: pyhnix-postgres
+    image: postgres
+    hostname: pyhnix-postgres
+    restart: always
+    volumes:
+      - pyhnix-postgres:/var/lib/postgresql/data
+    env_file: .env
+    ports:
+      - "5432:5432"
+  
+  bot:
+    container_name: pyhnix-bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    volumes:
+      - pyhnix-bot-records:/bot/.records
+    env_file: .env
+
+  frontend:
+    container_name: pyhnix-pgadmin4
+    image: dpage/pgadmin4
+    hostname: pyhnix-pgadmin
+    restart: always
+    env_file: .env
+    ports:
+      - "5050:80"
+
+volumes:
+  pyhnix-postgres:
+  pyhnix-bot-records:
