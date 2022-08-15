@@ -6,6 +6,8 @@ from logging import handlers
 import os
 import discord
 
+from dotenv import load_dotenv
+
 from rich.logging import RichHandler
 
 from internal import client
@@ -54,13 +56,15 @@ def main():
     args = parse_args()
     logger_setup(args)
 
+    if args.beta: load_dotenv()
+
     intents = discord.Intents.default()
     intents.members = True
     intents.message_content = True
     
     bot = client.Phoenix(intents=intents, namespace=args)
     
-    bot.run("MAIN_TOKEN")
+    bot.run(os.getenv(args.token))
 
 if __name__ == "__main__":
     main()

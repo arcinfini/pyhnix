@@ -1,5 +1,6 @@
 /.records
 *.sqlite
 .venv
-
+.vscode
+.env
 /__pycache__

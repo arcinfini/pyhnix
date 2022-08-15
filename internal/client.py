@@ -3,7 +3,7 @@ from os import getenv
 from pathlib import Path
 
 from discord.ext import commands
-import discord, motor.motor_asyncio
+import discord
 
 from dotenv import load_dotenv
 
@@ -51,9 +51,8 @@ class Phoenix(commands.Bot):
                     print(str(e)) # turn into log
 
     def run(self, token:str):
-        self.__motor = motor.motor_asyncio.AsyncIOMotorClient(token)
-
-        super().run(getenv(token), log_handler=None)
+        
+        super().run(token, log_handler=None)
 
     @property
     def database(self):
