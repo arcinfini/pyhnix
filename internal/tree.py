@@ -5,4 +5,10 @@ class PhoenixTree(app_commands.CommandTree):
     """"""
 
     async def on_error(self, interaction: Interaction, error):
-        print(traceback.format_exc())
+        # check error
+        # input error
+        # environment error
+
+        # if not caught, send error to discord logs
+
+        await super().on_error(interaction, error)

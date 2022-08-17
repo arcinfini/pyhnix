@@ -1,32 +1,55 @@
-import logging, signal, asyncio
+import logging, signal, asyncio, os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from discord.ext import commands
-import discord
+import discord, asyncpg
 
 from internal.tree import PhoenixTree
 
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 class Phoenix(commands.Bot):
     """"""
 
-    def __init__(self, *args, namespace, **kwargs):
-        super().__init__(command_prefix="!", *args, tree_cls=PhoenixTree, **kwargs)
+    def __init__(self, namespace):
+        mentions = discord.AllowedMentions.none()
+        mentions.users = True
+        mentions.replied_user = True
 
+        intents = discord.Intents.default()
+        intents.members = True
+        intents.message_content = True
+        
+        super().__init__(
+            command_prefix=namespace.prefix, 
+            tree_cls=PhoenixTree,
+            intents=intents,
+            allowed_mentions=mentions
+        )
+
+        self.namespace = namespace
         self.guild = discord.Object(id=namespace.guild)
         self.add_listener(self.__awake_hook, "on_ready")
 
     async def __awake_hook(self):
-        logger.info("Awake")
+        logger.info("Awake as @%s#%s", self.user.name, self.user.discriminator)
 
     async def setup_hook(self):
+        """
+        Sets up important extensions for the bot
+        """
+        
+        await self.ensure_database()
+        
         await self.__load_extensions("ext")
 
         # Not sure if this actually works.
         def handle_close(*args, **kwargs):
-            print(args, kwargs)
-            asyncio.ensure_future(self.close())
+            logger.info("Recieved SIGTERM, terminating")
+            asyncio.run(self.close())
 
         signal.signal(signal.SIGTERM, handle_close)
 
@@ -50,7 +73,23 @@ class Phoenix(commands.Bot):
                 try:
                     await self.load_extension(extension)
                 except Exception as e:
-                    print(str(e)) # turn into log
+                    logger.error(
+                        "an error occurred while loading extension", 
+                        exc_info=e
+                    )
+
+    async def ensure_database(self):
+        if self.__pool is not None and not self.__pool._closed: return
+
+        logger.critical("Database connection: initializing")
+        self.__pool = await asyncpg.create_pool(
+            user=os.getenv('POSTGRES_USER'),
+            password=os.getenv('POSTGRES_PASSWORD'),
+            host=self.namespace.host,
+            port=5432,
+            database=os.getenv('POSTGRES_DB')
+        )
+        logger.critical("Database connection: initialized")
 
     def run(self, token:str):
         
@@ -58,4 +97,4 @@ class Phoenix(commands.Bot):
 
     @property
     def database(self):
-        return self.__motor['elonesports']
+        return self.__pool
