@@ -1,7 +1,7 @@
-version: "3"
+version: "3.8"
 services:  
 
-  backend:
+  database:
     container_name: pyhnix-postgres
     image: postgres
     hostname: pyhnix-postgres
@@ -18,11 +18,13 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: "no"
+    profiles:
+      - build
     volumes:
-      - pyhnix-bot-records:/bot/.records
+      - /.data/pyhnix/bot/records:/bot/.records
     env_file: .env
 
-  frontend:
+  pgadmin:
     container_name: pyhnix-pgadmin4
     image: dpage/pgadmin4
     hostname: pyhnix-pgadmin
@@ -33,4 +35,4 @@ services:
 
 volumes:
   pyhnix-postgres:
-  pyhnix-bot-records:
+    name: "pyhnix-database"
