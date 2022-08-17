@@ -25,9 +25,13 @@ class Main(commands.Cog, name="terminal"):
         
         try:
             await self.bot.reload_extension(extension)
-            await interaction.response.send_message("extension reload successful", ephemeral=True)
+            await interaction.response.send_message(
+                "extension reload successful", 
+                ephemeral=True
+            )
         except Exception as e:
             await interaction.response.send_message("reload failure %s" % str(e))
+            logger.error("reload failure in %s", extension, exc_info=e)
 
     @_reload.autocomplete('extension')
     async def _reload_choices(self, interaction: Interaction, current: str):
@@ -39,6 +43,7 @@ class Main(commands.Cog, name="terminal"):
     async def _kill(self, interaction: Interaction):
         
         await interaction.response.send_message("TERMINATING")
+        logger.critical("Terminating connection via command 'kill'")
         
         
         await interaction.client.close()

@@ -13,12 +13,20 @@ logger.setLevel(logging.INFO)
 """
 embedb build [,m_id[, index]]
 embedb edit m_id
+
+enables the building and editing of all embeds sent by the bot.
 """
 
 class Form(dui.Modal):
+    """
+    A default modal to display text inputs to a user.
+
+    Input handling is done externally and this form sends a defer to record a
+    response
+    """
 
     def __init__(self, author, /, **items: typing.Dict[str, dui.Item]):
-        super().__init__(title="Embed Builder", timeout=60*15)
+        super().__init__(title="Embed Builder Prompt", timeout=60*15)
 
         self.__items = items
         self.author = author
@@ -42,8 +50,14 @@ class Form(dui.Modal):
         raise error
 
 class EmbedBuilderView(dui.View):
+    """
+    The view that hosts the buttons and other controls for creating or editing
+    an embed.
 
-    def __init__(self, author, embed, /, post=None):
+    Makes use of the default Form modal to build promts
+    """
+
+    def __init__(self, author, embed, *, post=None):
         super().__init__(timeout=60*15)
 
         self.embed:discord.Embed = embed
@@ -514,9 +528,7 @@ class Main(app_commands.Group):
     @app_commands.command(name="build")
     async def _build(
         self, 
-        interaction: Interaction # , 
-        # m_id: typing.Optional[str], 
-        # index: typing.Optional[int]
+        interaction: Interaction
     ):
         """
         Sends an embed builder
@@ -530,7 +542,7 @@ class Main(app_commands.Group):
             await interaction.channel.send(embed=build_view.embed)
         
         
-        builder = EmbedBuilderView(embed, post=callback)
+        builder = EmbedBuilderView(interaction.user.id, embed, post=callback)
 
         await interaction.response.send_message(
             embed=embed,
@@ -538,7 +550,7 @@ class Main(app_commands.Group):
             ephemeral=True
         )
 
-    # TODO: Allow editing of messages with embeds
+    # TODO: Allow editing an embed in an existing message
 
 
 
