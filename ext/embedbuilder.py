@@ -10,6 +10,8 @@ import discord, discord.ui as dui
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# TODO, FIX BREAKING BUGS
+
 """
 embedb build [,m_id[, index]]
 embedb edit m_id
@@ -72,7 +74,7 @@ class EmbedBuilderView(dui.View):
         be updated
         """
 
-        self._field_index.options=[
+        options=[
             discord.SelectOption(
                 label=field.name, 
                 description=index,
@@ -80,6 +82,12 @@ class EmbedBuilderView(dui.View):
             )
             for index, field in enumerate(self.embed.fields)
         ]
+        if len(options) == 0:
+            options.append(discord.SelectOption(
+                label="Null"
+            ))
+
+        self._field_index.options = options
 
 
     def input(self, label, **kwargs):
@@ -331,6 +339,10 @@ class EmbedBuilderView(dui.View):
         """
         Disables the edit and remove field buttons if no item is selected
         """
+
+        # TODO: if item is selected then resend list with it selected
+        # send it not selected if not
+        # TODO: CHeck if null field is selected, do nothing if so
         
         selected = len(select.values)==0
 
@@ -370,7 +382,7 @@ class EmbedBuilderView(dui.View):
             )
         )
 
-        self.embed.insert_field_at(int(response.index), 
+        self.embed.insert_field_at(int(response.index if response.index != '' else None), 
             name=response.name, 
             value=response.value, 
             inline=bool(response.inline)
@@ -416,8 +428,10 @@ class EmbedBuilderView(dui.View):
             )
         )
 
-        if int(response.index) != index:
-            self.embed.insert_field_at(int(response.index), 
+        new_index = int(response.index if response.index != '' else None)
+        if new_index != index:
+            # TODO: Fix the logic behind this. It doesn't always work as planned when moving a field forward
+            self.embed.insert_field_at(new_index, 
                 name=response.name,
                 value=response.value,
                 inline=response.inline
@@ -426,13 +440,13 @@ class EmbedBuilderView(dui.View):
 
             self.update_field_select()
         else:
-            self.embed.set_field_at(int(response.index), 
+            self.embed.set_field_at(new_index, 
                 name=response.name,
                 value=response.value,
                 inline=response.inline
             )
 
-        await self.update(interaction, with_view=int(response.index)!=index)
+        await self.update(interaction, with_view=new_index!=index)
 
     @dui.button(label="Remove Field", style=discord.ButtonStyle.red, row=3, disabled=True)
     async def _remove_field(self, interaction: Interaction, button: dui.Button):
@@ -441,6 +455,7 @@ class EmbedBuilderView(dui.View):
         """
 
         # TODO: Prompt for confirmation
+        # TODO: Remove select option
 
         index = int(self._field_index.values[0])
 
