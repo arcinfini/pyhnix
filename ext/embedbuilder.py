@@ -59,7 +59,7 @@ class EmbedBuilderView(dui.View):
     Makes use of the default Form modal to build promts
     """
 
-    def __init__(self, author, embed, *, post=None):
+    def __init__(self, author, embed, *, post):
         super().__init__(timeout=60*15)
 
         self.embed:discord.Embed = embed

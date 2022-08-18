@@ -177,7 +177,7 @@ class RoleSelectorView(discord.ui.View):
             for role in items:
                 select.add_option(
                     label=role.name, 
-                    value=role.id,
+                    value=str(role.id),
                     default=role in active_roles
                 )
 
@@ -206,7 +206,7 @@ class Main(app_commands.Group):
         Creates a new role button interface in this channel
         """
         
-        form = RoleButtonForm()
+        form = RoleButtonForm(interaction.user.id)
         await interaction.response.send_modal(form)
 
         result = await form.wait()
@@ -280,7 +280,7 @@ class Main(app_commands.Group):
 
             button_view.clear_items()
             for role in roles:
-                button_view.add_button(role)
+                button_view.add_button(role, custom="")
 
             await message.edit(view=button_view)
             await s_interaction.response.send_message("roles added", ephemeral=True)
