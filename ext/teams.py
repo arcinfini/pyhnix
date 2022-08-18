@@ -1,15 +1,17 @@
 import typing, enum, logging
 from collections import OrderedDict
 
+from discord.ext import commands
 from discord import app_commands, Interaction
 import discord
+
+from internal import app_errors
 
 logger = logging.getLogger(__name__)
 
 """
 team create
-team give @user teamname
-team remove @user teamname
+team members [add/remove] @member teamname
 
 team info teamname
 team edit teamname
@@ -20,12 +22,12 @@ team edit teamname
 TLDRTODO
 
 1. update instead of replace teams on force_fetch
-2. implement team.edit
-3. implement team.raw_edit
-4. implement team.delete()
+2. ~~implement team.edit~~
+3. ~~implement team.raw_edit~~
+4. ~~implement team.delete()~~
 5. add ephemeral tags to responses
 6. finish team_info stub
-7. implement command permission checks
+7. ~~implement command permission checks~~
 
 """
 
@@ -71,6 +73,14 @@ class Team:
         
         return self.name == other.name and self.guildid == other.guildid
 
+    def __str__(self):
+        return "```\n" +\
+            f"Team: {self.name}\n" +\
+            f"Lead: {self.lead_roleid}\n" +\
+            f"Role: {self.member_roleid}\n" +\
+            f"Members: {len(self.members)}\n" +\
+            "```"
+
     async def add_member(self, member: discord.Member):
         """
         Adds a guild member to the team members
@@ -84,10 +94,9 @@ class Team:
 
         async with self.team_cache.bot.database.acquire() as conn:
             await conn.execute("""
-            update esports_teams
-            set members = array_append(members, $1)
-            where name = $2
-            and guildid = $3
+            update esports_teams set 
+                members = array_append(members, $1)
+            where name = $2 and guildid = $3
             """, member.id, self.name, self.guildid)
 
     async def remove_member(self, member: discord.User):
@@ -102,10 +111,9 @@ class Team:
 
             async with self.team_cache.bot.database.acquire() as conn:
                 await conn.execute("""
-                update esports_teams
-                set members = array_remove(members, $1)
-                where name = $2
-                and guildid = $3
+                update esports_teams set 
+                    members = array_remove(members, $1)
+                where name = $2 and guildid = $3
                 """, member.id, self.name, self.guildid)
         
 
@@ -118,9 +126,34 @@ class Team:
     ):
         """
         Edits the database to reflect the changes
+
+        Makes used of coalesce which returns the first non-null value. This
+        should allow the passing of default values without the need to overwrite
         """
 
-    def raw_edit():
+        async with self.team_cache.bot.database.acquire() as conn:
+            await conn.execute("""
+            update esports_teams set
+                name = COALESCE($1, name)
+                lead_roleid = COALESCE($2, lead_roleid)
+                member_roleid = COALESCE($3, member_roleid)
+            where name = $4 and guildid = $5
+            """, name, lead_role.id, member_role.id, self.name, self.guildid)
+
+            self.raw_edit(
+                name=name, 
+                lead_roleid=lead_role.id,
+                member_roleid=member_role.id
+            )
+
+    def raw_edit(
+        self,
+        *,
+        name:str = None,
+        lead_roleid: int = None,
+        member_roleid: int = None,
+        members: typing.List[int] = None
+    ):
         """
         A currently unimplemented method for editing the internal attributes of
         a team without making any database calls.
@@ -128,12 +161,21 @@ class Team:
         This is to be used by the Cache to update teams in force_fetch
         """
 
-    async def delete():
+        if name is not None: self.name = name
+        if lead_roleid is not None: self.lead_roleid = lead_roleid
+        if member_roleid is not None: self.member_roleid = member_roleid
+        if members is not None: self.members = members
+
+    async def delete(self):
         """
         Deletes the role from the internal database
         """
 
-
+        async with self.team_cache.bot.database.acquire() as conn:
+            await conn.execute("""
+            delete from esports_teams
+            where name = $1 and guildid = $2
+            """, self.name, self.guildid)
 
 T = typing.TypeVar("T")
 class LRUCache(typing.Generic[T]):
@@ -217,7 +259,7 @@ class GuildTeamsCache(LRUCache[Teams]):
         teams = await self.force_fetch(guild)
 
         # there can be situations where another process creates a team during
-        # this frame with the same name and guild chances are unlikely but it
+        # this frame with the same name and guild; chances are unlikely but it
         # should be kept in mind
 
         if teams.get(name) is not None:
@@ -240,8 +282,7 @@ class GuildTeamsCache(LRUCache[Teams]):
         
         return team
 
-        
-
+@app_commands.guild_only
 class Main(app_commands.Group):
 
     class TeamTransformer(app_commands.Transformer):
@@ -276,9 +317,40 @@ class Main(app_commands.Group):
         self.bot = bot
         Main.teams = GuildTeamsCache(bot)
 
+        logging.info("%s initialized", __name__)
+
     def team_info(self, team: Team):
-        embed = discord.Embed(title="Team Info")
+        embed = discord.Embed(
+            title="Team Info",
+            description=str(team)
+        )
+
         return embed
+
+    def can_administrate_teams(self, member: discord.Member):
+        """
+        Checks if the member is an administrator
+        """
+        
+        return member.guild_permissions.administrator
+
+    def can_control_team(self, member: discord.Member, team: Team):
+        """
+        Checks if the member is an administrator or if they have the respective
+        team lead role
+        """
+        
+        return team.lead_roleid in [r.id for r in member.roles] \
+            or self.can_administrate_teams(member)
+
+    async def interaction_check(self, interaction: Interaction):
+        """
+        member needs to have manage role permissions or administrator
+        or to have the team lead role of the team they are attempting to manage
+        
+        the bot also needs to have the ability to manage roles
+        """
+        return True
 
     @app_commands.command(name="create")
     async def _create(
@@ -291,6 +363,11 @@ class Main(app_commands.Group):
         """
         Creates a new team for the guild
         """
+        if not self.can_administrate_teams(interaction.user):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
 
         team = await self.teams.create_team(
             interaction.guild, 
@@ -304,8 +381,16 @@ class Main(app_commands.Group):
     @app_commands.command(name="delete")
     async def _delete(self, interaction: Interaction, team: TeamTransformer):
         """
-        Deletes a team from the guild. Asks for clarification
+        Deletes a team from the guild. Asks for clarification. 
+        Can only be done by server administrators
         """
+
+        if not self.can_administrate_teams(interaction.user):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
+
         await team.delete()
 
         await interaction.response.send_message(f"{team.name} was deleted")
@@ -320,8 +405,15 @@ class Main(app_commands.Group):
         name: typing.Optional[str]
     ):
         """
-        Edits a team's properties
+        Edits a team's properties.
+        Can only be done by server administrators
         """
+
+        if not self.can_administrate_teams(interaction.user):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
 
         await interaction.response.defer()
 
@@ -329,8 +421,8 @@ class Main(app_commands.Group):
         # TODO: update member roles to new role
 
         await interaction.followup.send(
-            f"{team.name} updated | new team info"
-            # TODO provide team info embed.
+            f"{team.name} updated | new team info",
+            embed=self.team_info(team)
         )
 
     @app_commands.command(name="members")
@@ -345,10 +437,17 @@ class Main(app_commands.Group):
         Adds or removes a member from the list of team members. Must be done by
         a team lead or a member with administrative permissions.
         """
+
+        if not self.can_control_team(interaction.user, team):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
+
+        # member fetch may be redundant
         member = await interaction.guild.fetch_member(user.id)
 
         if action == MemberAction.add:
-            # member fetch may be redundant
             
             await team.add_member(member)
 
@@ -358,7 +457,8 @@ class Main(app_commands.Group):
             )
 
             await interaction.response.send_message(
-                f"{member.name} added to {team.name}"
+                f"{member.mention} added to {team.name}",
+                allowed_mentions=None
             )
             return
         
@@ -373,15 +473,52 @@ class Main(app_commands.Group):
                 )
 
             await interaction.response.send_message(
-                f"{user.name} removed from {team.name}"
+                f"{user.mention} removed from {team.name}",
+                allowed_mentions=None
             )
             return
 
     @app_commands.command(name="list")
-    async def _list(self, interaction: Interaction):
+    async def _list(
+        self, 
+        interaction: Interaction
+    ):
         """
         Lists all the teams and short info of the guild
         """
+
+        if not self.can_administrate_teams(interaction.user):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
+
+        teams = await self.teams.force_fetch(interaction.guild)
+
+        embed = discord.Embed("Team List")
+        for team in teams:
+            embed.add_field(name=team.name, value=str(team), inline=True)
+
+        await interaction.response.send_message(
+            embed=embed
+        )
+
+    @app_commands.command(name="info")
+    async def _info(self, interaction: Interaction, team: TeamTransformer):
+        """
+        Provides info about the given team.
+        """
+
+        if not self.can_control_team(interaction.user, team):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
+
+        await interaction.response.send_message(
+            embed=self.team_info(team),
+            ephemeral=True
+        )
 
 
 async def setup(bot):
