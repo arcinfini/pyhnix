@@ -33,6 +33,7 @@ class Phoenix(commands.Bot):
         self.namespace = namespace
         self.guild = discord.Object(id=namespace.guild)
         self.add_listener(self.__awake_hook, "on_ready")
+        self.__pool = None
 
     async def __awake_hook(self):
         logger.info("Awake as @%s#%s", self.user.name, self.user.discriminator)
@@ -81,7 +82,7 @@ class Phoenix(commands.Bot):
     async def ensure_database(self):
         if self.__pool is not None and not self.__pool._closed: return
 
-        logger.critical("Database connection: initializing")
+        logger.warn("Database connection: initializing")
         self.__pool = await asyncpg.create_pool(
             user=os.getenv('POSTGRES_USER'),
             password=os.getenv('POSTGRES_PASSWORD'),
@@ -89,7 +90,7 @@ class Phoenix(commands.Bot):
             port=5432,
             database=os.getenv('POSTGRES_DB')
         )
-        logger.critical("Database connection: initialized")
+        logger.warn("Database connection: initialized")
 
     def run(self, token:str):
         
