@@ -12,6 +12,12 @@ logger.setLevel(logging.INFO)
 
 # from utils.checks import is_botadmin
 
+"""
+Reimplement timeout portion
+remove view on timeout
+re-add is botadmin check
+"""
+
 CODESTRING = r".*(eval|aexec)\s+?`{3}(py)?\n?(?P<code>[\s\S]*?)`{3}\n?\s*(?P<content>[\s\S]*)"
 CODEPATTERN = re_compile(CODESTRING, RegexFlag.IGNORECASE)
 
@@ -88,15 +94,16 @@ class ExecuteView(discord.ui.View):
     def __init__(self, *, message:discord.Message, timeout, constant, custom_id=None):
         super().__init__(timeout=timeout)
 
+        # todo is there a better way to find this (property)
         timeout_at = message.created_at + datetime.timedelta(seconds=timeout)
 
         self.add_item(ExecuteButton(timeout_at=timeout_at, custom_id=custom_id))
         self.add_item(DeleteButton(custom_id=custom_id))
 
-        self.__author = message.author.id
+        self.author = message.author.id
 
     async def interaction_check(self, interaction: Interaction) -> bool:
-        return interaction.user.id == self.__author
+        return interaction.user.id == self.author
 
 
 class Main(commands.Cog, name='code'):

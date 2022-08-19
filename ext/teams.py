@@ -496,7 +496,7 @@ class Main(app_commands.Group):
         teams = await self.teams.force_fetch(interaction.guild)
 
         embed = discord.Embed(title="Team List")
-        for team in teams:
+        for team in teams.values():
             embed.add_field(name=team.name, value=str(team), inline=True)
 
         await interaction.response.send_message(
