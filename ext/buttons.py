@@ -9,7 +9,7 @@ from internal.client import Phoenix
 
 logger = logging.getLogger(__name__)
 
-__interfaces = []
+_interfaces = []
 
 """
 roleb create
@@ -17,6 +17,9 @@ roleb edit
 roleb manage
 
 TODO: deletion, name editing
+
+TODO: ON reload persistence is fine on restart it fails
+TODO: no updates causes all buttons to disappear
 
 """
 
@@ -74,7 +77,7 @@ class RoleButtonForm(dui.Modal):
         return interaction.user.id == self.author
 
     async def on_submit(self, interaction: Interaction):
-        await interaction.response.pong()
+        await interaction.response.send_message("response recorded", ephemeral=True)
 
 
 class RoleButton(dui.Button):
@@ -86,8 +89,9 @@ class RoleButton(dui.Button):
         super().__init__(
             style=discord.ButtonStyle.blurple, 
             label=role.name,
-            custom_id=custom_fmt.format(role.id)
+            custom_id=custom_fmt % role.id
         )
+        logger.info(custom_fmt, role.id)
 
         self.custom_fmt = custom_fmt
         self.role = role
@@ -138,21 +142,23 @@ class RoleButtonInterface(dui.View):
         self.guild = guild
 
         self.message = message
-        self.roles = roles
+        self.roles = []
         self.custom_fmt = custom_fmt
 
-        for role in self.roles:
+        for role in roles:
             self.add_button(role)
 
     @classmethod
     async def from_record(cls, client:Phoenix, *, record):
         """"""
         # TODO: Handle case where message or channel is deleted
+        # TODO: Change all fetches other than role to check if item is already cached
 
-        channel = client.get_channel(record['channelid'])
+        channel = await client.fetch_channel(record['channelid'])
         message = await channel.fetch_message(record['messageid'])
 
-        roles = await channel.guild.fetch_roles()
+        guild = await client.fetch_guild(channel.guild.id)
+        roles = await guild.fetch_roles()
         active = list(filter(lambda x: x.id in record['roles'], roles))
         active.sort(key=lambda x: x.position)
 
@@ -209,7 +215,7 @@ class RoleButtonInterface(dui.View):
             self.message.id, 
             self.message.channel.id, 
             self.custom_fmt, 
-            self.roles
+            [r.id for r in self.roles]
         )
 
     async def update(self):
@@ -221,7 +227,7 @@ class RoleButtonInterface(dui.View):
             UPDATE role_button_interfaces SET
             roles=$1
             WHERE name=$2 and guildid=$3
-            """, self.roles, self.name, self.guild.id)
+            """, [r.id for r in self.roles], self.name, self.guild.id)
 
 
 class RoleSelectView(dui.View):
@@ -265,7 +271,7 @@ class RoleSelectView(dui.View):
                 ephemeral=True
             )
 
-        await interaction.response.pong()
+        await interaction.response.send_message("response recorded", ephemeral=True)
 
     def __build(self, roles:typing.List[discord.Role]):
         """
@@ -282,8 +288,7 @@ class RoleSelectView(dui.View):
             select = discord.ui.Select(
                 placeholder="Roles selected will be added to the self assigner",
                 min_values=0, 
-                max_values=len(items),
-                row=i
+                max_values=len(items)
             )
 
             for role in items:
@@ -325,6 +330,7 @@ class RoleSelectView(dui.View):
             self.__role_buttons.add_button(role)
 
         await self.__role_buttons.send()
+        logger.debug("is persistent: %s", str(self.__role_buttons.is_persistent()))
 
 
 class RoleInterfaceTransformer(app_commands.Transformer):
@@ -332,7 +338,7 @@ class RoleInterfaceTransformer(app_commands.Transformer):
     async def transform(self, interaction: Interaction, value: str):
 
         result = discord.utils.get(
-            __interfaces, 
+            _interfaces, 
             name=value, 
             guild__id=interaction.guild.id
         )
@@ -349,7 +355,7 @@ class RoleInterfaceTransformer(app_commands.Transformer):
         """
 
         _filter = lambda x: x.guild.id == interaction.guild.id and value in x.name
-        interfaces = filter(_filter, __interfaces)
+        interfaces = filter(_filter, _interfaces)
 
         return [app_commands.Choice(name=i.name, value=i.name) for i in interfaces]
 
@@ -393,14 +399,14 @@ class RoleButtonsCommand(app_commands.Group):
         # TODO: Figure out how to handle this and inform user
 
         # now that unique errors are out of the way
-        __interfaces.append(role_buttons)
+        _interfaces.append(role_buttons)
 
         # Begin sending the role selection
         top_role = interaction.guild.me.top_role
         roles = await interaction.guild.fetch_roles()
         editable_roles = list(filter(lambda x: x < top_role, roles))
         
-        role_select = RoleSelectView(role_buttons, roles=editable_roles)
+        role_select = RoleSelectView(interaction.user.id, role_buttons, roles=editable_roles)
 
         await interaction.followup.send(
             "Select the roles to add to the list",
@@ -422,7 +428,7 @@ class RoleButtonsCommand(app_commands.Group):
         roles = await interaction.guild.fetch_roles()
         editable_roles = list(filter(lambda x: x < top_role, roles))
         
-        role_select = RoleSelectView(interface, roles=editable_roles)
+        role_select = RoleSelectView(interaction.user.id, interface, roles=editable_roles)
 
         await interaction.response.send_message(
             "Select the roles to add to the list",
@@ -481,7 +487,7 @@ class Main(commands.Cog):
 
         bot.tree.add_command(self.role_button_command)
 
-    async def on_ready(self):
+    async def cog_load(self):
         logger.info("%s initialized", __name__)
         logger.debug("reading database to enable role button interfaces")
 
@@ -493,17 +499,17 @@ class Main(commands.Cog):
         logger.debug("loading role button interfaces")
 
         # This should never be the case but just in that off chance
-        for interface in __interfaces:
+        for interface in _interfaces:
             interface.stop()
         
-        __interfaces.clear()
+        _interfaces.clear()
 
         for record in records:
-            __interfaces.append(
+            _interfaces.append(
                 await RoleButtonInterface.from_record(self.bot, record=record)
             )
 
         logger.debug("role button interfaces loaded")  
     
 async def setup(bot):
-    await bot.tree.add_cog(Main(bot))
+    await bot.add_cog(Main(bot))
