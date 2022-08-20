@@ -505,9 +505,9 @@ class Main(commands.Cog):
         _interfaces.clear()
 
         for record in records:
-            _interfaces.append(
-                await RoleButtonInterface.from_record(self.bot, record=record)
-            )
+            view = await RoleButtonInterface.from_record(self.bot, record=record)
+            self.bot.add_view(view)
+            _interfaces.append(view)
 
         logger.debug("role button interfaces loaded")  
     
