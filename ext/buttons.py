@@ -17,8 +17,6 @@ roleb edit
 roleb manage
 
 TODO: deletion, name editing
-
-TODO: ON reload persistence is fine on restart it fails
 TODO: no updates causes all buttons to disappear
 
 """
@@ -77,7 +75,7 @@ class RoleButtonForm(dui.Modal):
         return interaction.user.id == self.author
 
     async def on_submit(self, interaction: Interaction):
-        await interaction.response.send_message("response recorded", ephemeral=True)
+        await interaction.response.defer(thinking=False)
 
 
 class RoleButton(dui.Button):
@@ -160,7 +158,7 @@ class RoleButtonInterface(dui.View):
         guild = await client.fetch_guild(channel.guild.id)
         roles = await guild.fetch_roles()
         active = list(filter(lambda x: x.id in record['roles'], roles))
-        active.sort(key=lambda x: x.position)
+        active.sort(key=lambda x: x.position, reverse=True)
 
         return cls(
             client,
@@ -185,7 +183,7 @@ class RoleButtonInterface(dui.View):
     def sort_buttons(self):
 
         buttons = self.children
-        buttons.sort(key=lambda x: x.role.position)
+        buttons.sort(key=lambda x: x.role.position, reverse=True)
 
         self.clear_items()
 
@@ -271,7 +269,7 @@ class RoleSelectView(dui.View):
                 ephemeral=True
             )
 
-        await interaction.response.send_message("response recorded", ephemeral=True)
+        await interaction.response.defer(thinking=False)
 
     def __build(self, roles:typing.List[discord.Role]):
         """
@@ -311,7 +309,6 @@ class RoleSelectView(dui.View):
 
         self.__submitted = True
 
-        button.disabled=True # TODO : this is changed but not sent
         await interaction.response.edit_message(
             content="submission recorded", 
             view=None
@@ -477,7 +474,7 @@ class RoleButtonsCommand(app_commands.Group):
 
         await interface.message.edit(content=form.content)
 
-# TODO: If problems arise with views disabling, add a task to check the view consistency
+# If problems arise with views disabling, add a task to check the view consistency
 class Main(commands.Cog):
 
     def __init__(self, bot):
