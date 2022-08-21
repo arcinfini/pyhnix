@@ -4,7 +4,6 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 class Main(commands.Cog, name="terminal"):
 
@@ -16,7 +15,8 @@ class Main(commands.Cog, name="terminal"):
     @commands.command()
     async def sync_apps(self, ctx:commands.Context):
         self.bot.tree.copy_global_to(guild=ctx.guild)
-        print(await self.bot.tree.sync(guild=ctx.guild))
+        synced = await self.bot.tree.sync(guild=ctx.guild)
+        logger.info(synced)
 
     @app_commands.command(name="reload", description="reloads a bot extension")
     @app_commands.describe(extension="the extension to reload")
@@ -32,6 +32,7 @@ class Main(commands.Cog, name="terminal"):
         except Exception as e:
             await interaction.response.send_message("reload failure %s" % str(e))
             logger.error("reload failure in %s", extension, exc_info=e)
+            raise e # send to tree error handler
 
     @_reload.autocomplete('extension')
     async def _reload_choices(self, interaction: Interaction, current: str):

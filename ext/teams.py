@@ -317,8 +317,6 @@ class Main(app_commands.Group):
         self.bot = bot
         Main.teams = GuildTeamsCache(bot)
 
-        logging.info("%s initialized", __name__)
-
     def team_info(self, team: Team):
         embed = discord.Embed(
             title="Team Info",
@@ -524,4 +522,4 @@ class Main(app_commands.Group):
 async def setup(bot):
     bot.tree.add_command(Main(bot))
 
-    logger.info("%s initialized" % __name__)
+    logger.info("%s initialized", __name__)
