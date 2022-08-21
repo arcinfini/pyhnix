@@ -8,7 +8,6 @@ from discord import app_commands, Interaction
 import discord, discord.ui as dui
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 # TODO, FIX BREAKING BUGS
 
@@ -30,7 +29,7 @@ class Form(dui.Modal):
     def __init__(self, author, /, **items: typing.Dict[str, dui.Item]):
         super().__init__(title="Embed Builder Prompt", timeout=60*15)
 
-        self.__items = items
+        self.__items = items.copy()
         self.author = author
 
         for _, item in items.items():

@@ -1,8 +1,10 @@
-import traceback, io
+import traceback, io, logging
 from discord import app_commands, Interaction
 import discord
 
 from internal import app_errors
+
+logger = logging.getLogger(__name__)
 
 class PhoenixTree(app_commands.CommandTree):
     """"""
@@ -14,6 +16,13 @@ class PhoenixTree(app_commands.CommandTree):
         
         else:
             await interaction.response.send_message(*args, **kwargs)
+
+    async def interaction_check(self, interaction: Interaction):
+        if (command := interaction.command) is not None:
+
+            logger.debug("interaction issued: %s", command.qualified_name)
+
+        return True
 
     async def alert(self, interaction: Interaction, error: Exception):
         """

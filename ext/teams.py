@@ -67,9 +67,6 @@ class Team:
         """
         Ensures both objects have the same name and guild id
         """
-        # inconsistencies can arise if the cache fails to update an existing
-        # team's properties TODO: solution rather than overwriting exisiting
-        # teams, update the internal attributes
         
         return self.name == other.name and self.guildid == other.guildid
 
