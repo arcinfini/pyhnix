@@ -11,7 +11,6 @@ import discord
 logger = logging.getLogger(__name__)
 
 # from utils.checks import is_botadmin
-# TODO: turn evaluator into a single use view that extracts the message via interaction
 
 """
 Reimplement timeout portion
@@ -143,7 +142,10 @@ class Main(commands.Cog, name='code'):
 
     @commands.command(aliases=['aexec'])
     # @is_botadmin()
-    async def eval(self, ctx:commands.Context, *, flags:EvalConverter):
+    async def eval(self, ctx:commands.Context, *, code:str):
+        """
+        Enables an eval view
+        """
 
         await ctx.reply("```...```",mention_author=False, view=self.EVAL_VIEW)
             

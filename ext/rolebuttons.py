@@ -492,7 +492,6 @@ class Main(commands.Cog):
         bot.tree.add_command(self.role_button_command)
 
     async def cog_load(self):
-        logger.info("%s initialized", __name__)
         logger.debug("reading database to enable role button interfaces")
 
         async with self.bot.database.acquire() as conn:
@@ -536,3 +535,5 @@ class Main(commands.Cog):
     
 async def setup(bot):
     await bot.add_cog(Main(bot))
+
+    logger.info("%s initialized", __name__)
