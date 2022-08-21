@@ -5,55 +5,66 @@ from typing import Optional
 
 from discord.ext import commands
 from discord import Interaction
+import discord.ui as dui
 import discord
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 # from utils.checks import is_botadmin
+# TODO: turn evaluator into a single use view that extracts the message via interaction
 
 CODESTRING = r".*(eval|aexec)\s+?`{3}(py)?\n?(?P<code>[\s\S]*?)`{3}\n?\s*(?P<content>[\s\S]*)"
 CODEPATTERN = re_compile(CODESTRING, RegexFlag.IGNORECASE)
 
-class DeleteButton(discord.ui.Button):
-    """
-    A button that deletes the message it is attached to.
-    """
+class ExecuteView(dui.View):
 
-    def __init__(self, *, label='delete', custom_id=None):
-        custom_id = f'{custom_id}-{label}' if custom_id is not None else custom_id
+    def __init__(self, *, execute_id, delete_id):
+        super().__init__(timeout=None)
 
-        super().__init__(label=label, style=discord.ButtonStyle.red, custom_id=custom_id)
-
-    async def callback(self, interaction: Interaction):
-        message = interaction.message
-        await message.delete()
-
-class ExecuteButton(discord.ui.Button):
-
-    def __init__(self, *, label='execute', timeout_at, custom_id=None):
-        custom_id = f'{custom_id}-{label}' if custom_id is not None else custom_id
-        
-        super().__init__(label=label, style=discord.ButtonStyle.green, custom_id=custom_id)
-
-        self.timeout_at = timeout_at
+        self._execute.custom_id = execute_id
+        self._delete.custom_id = delete_id
 
     def format_dt(self, result="No Result"):
-        
+        """
+        Returns the result formatted within a code block in discord markdown
+        """
+
         return '```py\n%s```' % (result)
 
     def __source(self, to_eval):
+        """
+        Defines the source of the code being evaluated
+        """
+        
         return f'async def __ex(message, interaction): ' + \
         ''.join(f'\n\t{l}' for l in to_eval.split('\n'))
 
-    async def callback(self, interaction: Interaction):
-
+    async def interaction_check(self, interaction: Interaction) -> bool:
         message_reference = interaction.message.reference
-        message = await interaction.channel.fetch_message(message_reference.message_id)
-        if message is None:
-            # Initial message is deleted remove button.
-            await interaction.message.edit(view=None)
-            return
+        eval_message = await interaction.channel.fetch_message(message_reference.message_id)
+
+        # TODO: CHeck if user has clearance for command usage
+        # if they do not then inform and then run the delete action
+
+        if eval_message is None:
+            interaction.message.delete()
+            await interaction.response.send_message(
+                "The originating eval has been deleted. Cleaning"
+            )
+            return False
+
+        valid = eval_message.author.id == interaction.user.id
+
+        if valid:
+            interaction.extras['eval_message'] = eval_message
+            return True
+
+        return False
+
+    @dui.button(label="execute", style=discord.ButtonStyle.green)
+    async def _execute(self, interaction: Interaction, button: dui.Button):
+
+        message = interaction.extras['eval_message']
 
         match = CODEPATTERN.match(message.content)
         to_eval = match.group('code')
@@ -83,21 +94,11 @@ class ExecuteButton(discord.ui.Button):
                 attachments=[file] if file is not None else []
             )
 
-class ExecuteView(discord.ui.View):
-
-    def __init__(self, *, message:discord.Message, timeout, constant, custom_id=None):
-        super().__init__(timeout=timeout)
-
-        timeout_at = message.created_at + datetime.timedelta(seconds=timeout)
-
-        self.add_item(ExecuteButton(timeout_at=timeout_at, custom_id=custom_id))
-        self.add_item(DeleteButton(custom_id=custom_id))
-
-        self.__author = message.author.id
-
-    async def interaction_check(self, interaction: Interaction) -> bool:
-        return interaction.user.id == self.__author
-
+    @dui.button(label="delete", style=discord.ButtonStyle.red)
+    async def _delete(self, interaction: Interaction, button: dui.Button):
+        
+        message = interaction.message
+        await message.delete()
 
 class Main(commands.Cog, name='code'):
     """
@@ -110,17 +111,35 @@ class Main(commands.Cog, name='code'):
     def __init__(self, bot):
         self.bot:commands.Bot = bot
         
+        self.EVAL_VIEW = None
 
         logger.info("%s initialized" % __name__)
+
+    async def cog_load(self):
+        """
+        Defines the view to be used as the handler for eval functions
+        """
+        
+        self.EVAL_DELETE = f"EVAL-DELETE-{self.bot.user.id}"
+        self.EVAL_EXECUTE = f"EVAL-EXECUTE-{self.bot.user.id}"
+
+        self.EVAL_VIEW = ExecuteView(
+            execute_id=self.EVAL_EXECUTE,
+            delete_id=self.EVAL_DELETE
+        )
+        logger.debug("eval view: %s", self.EVAL_VIEW)
+
+        self.bot.add_view(self.EVAL_VIEW)
+
+    async def cog_unload(self):
+        # to consider reloads
+        self.EVAL_VIEW.stop()
 
     @commands.command(aliases=['aexec'])
     # @is_botadmin()
     async def eval(self, ctx:commands.Context, *, flags:EvalConverter):
-        timeout = flags.timeout if not flags.constant else None
-        
-        view = ExecuteView(message=ctx.message, timeout=timeout, constant=flags.constant, custom_id=None)
-        
-        await ctx.reply("```...```",mention_author=False, view=view)
+
+        await ctx.reply("```...```",mention_author=False, view=self.EVAL_VIEW)
             
 
     @commands.command(name='lambda')
