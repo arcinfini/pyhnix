@@ -6,6 +6,7 @@ import discord.ui as dui
 import discord
 
 from internal.client import Phoenix
+from internal import utils
 
 logger = logging.getLogger(__name__)
 
@@ -149,11 +150,16 @@ class RoleButtonInterface(dui.View):
     @classmethod
     async def from_record(cls, client:Phoenix, *, record):
         """"""
-        # TODO: Handle case where message or channel is deleted
-        # TODO: Change all fetches other than role to check if item is already cached
 
-        channel = await client.fetch_channel(record['channelid'])
-        message = await channel.fetch_message(record['messageid'])
+        channel = await utils.get_or_fetch_channel(client, record['channelid'])
+
+        if channel is None:
+            return None
+
+        message = await utils.get_or_fetch_message(channel, record['messageid'])
+
+        if message is None:
+            return None
 
         guild = await client.fetch_guild(channel.guild.id)
         roles = await guild.fetch_roles()
@@ -317,10 +323,11 @@ class RoleSelectView(dui.View):
         merged = []
         for selector in self.__selections:
             merged += selector.values
+            logger.debug("selected role buttons: %s", selector.values)
 
         roles = list([discord.utils.get(self.__editable_roles, id=int(id)) for id in merged])
         roles = list(filter(lambda x: x is not None, roles))
-        roles.sort(key=lambda x: x.position)
+        roles.sort(key=lambda x: x.position, reverse=True)
 
         self.__role_buttons.clear_items()
         for role in roles:
@@ -479,7 +486,7 @@ class Main(commands.Cog):
 
     def __init__(self, bot):
 
-        self.bot = bot
+        self.bot: Phoenix = bot
         self.role_button_command = RoleButtonsCommand(bot, self)
 
         bot.tree.add_command(self.role_button_command)
@@ -500,13 +507,32 @@ class Main(commands.Cog):
             interface.stop()
         
         _interfaces.clear()
+        to_remove = []
 
         for record in records:
             view = await RoleButtonInterface.from_record(self.bot, record=record)
+            if view is None:
+                to_remove.append(record)
+                continue
+
+            # logger.debug("adding view to dispatch: %s", {**record})
             self.bot.add_view(view)
             _interfaces.append(view)
 
-        logger.debug("role button interfaces loaded")  
+        logger.info("role button interfaces loaded")
+
+        if (length := len(to_remove)) > 0:
+            logger.info("removing %d unresolved role button interfaces", length)
+
+            async with self.bot.database.acquire() as conn:
+                await conn.executemany(
+                    """
+                    DELETE FROM role_button_interfaces
+                    WHERE name=$1 and guildid=$2
+                    """, 
+                    [(record['name'], record['guildid']) for record in to_remove]
+                )
+
     
 async def setup(bot):
     await bot.add_cog(Main(bot))
