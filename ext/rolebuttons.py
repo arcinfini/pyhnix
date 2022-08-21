@@ -1,151 +1,256 @@
-import sqlite3, json # for testing purposes
 
 import typing, logging
+from discord.ext import commands
 from discord import app_commands, Interaction
-import discord.utils as dutils
+import discord.ui as dui
 import discord
 
+from internal.client import Phoenix
+from internal import utils
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-"""
 
-TODO: Consider errors/circumstances when multiple people are attempting to edit the button view at a time
-
-TODO: Inform the user about the max of 25 roles per self assigner
+_interfaces = []
 
 """
+roleb create
+roleb edit
+roleb manage
 
-"""
-
-create table if not exists role_buttons (
-    message_id bigint,
-    channel_id bigint,
-    interaction_id bigint,
-
-    roles bigint[]
-)
+TODO: deletion, name editing
+TODO: no updates causes all buttons to disappear
 
 """
 
-class RoleButton(discord.ui.Button):
+"""role_button_interfaces
+guildid bigint
+name text
+
+messageid bigint # the id of the message
+channelid bigint # the id of the channel
+
+customfmt text # a python str meant to have format called on to create the custom id for a button
+
+roles bigint[]
+
+"""
+
+class RoleButtonForm(dui.Modal):
     """
-    The button that appears on the role button view
-    """
-    
-    # TODO handle role NotFound exception
-    # TODO handle not enough bot clearance
-    # TODO handle permission denied exception
-
-    def __init__(self, role:discord.Role, custom:str):
-        super().__init__(
-            style=discord.ButtonStyle.blurple,
-            label=role.name,
-            custom_id=custom
-        )
-
-        self.role_id = role.id
-        self.role = role
-        # TODO custom id will be {interaction.id-role.id}
-
-    async def callback(self, interaction: Interaction):
-        """
-        add or remove the role depending on if the user has it
-        """
-
-        logger.debug("role button pressed: %s (%d)", self.role.name, self.role.id)
-        if self.role in interaction.user.roles:
-            logger.debug("removing role: %s (%d)", self.role.name, self.role.id)
-
-            await interaction.user.remove_roles(self.role, reason="role assigner")
-            await interaction.response.send_message(
-                f"{self.role.name} has been removed from your roles",
-                ephemeral=True
-            )
-        else:
-            logger.debug("adding role: %s (%d)", self.role.name, self.role.id)
-
-            await interaction.user.add_roles(self.role, reason="role assigner")
-            await interaction.response.send_message(
-                f"{self.role.name} has been added to your roles",
-                ephemeral=True
-            )            
-
-class RoleButtonForm(discord.ui.Modal, title="Role Buttons"):
-    """
-    A modal sent to the user to control the content of the message for a self
-    assigner
-
-    allows a max of 2000 characters
+    The form sent to users for inputing name and content on creation and edit
+    editing the name is currently not supported
     """
     
-    content = discord.ui.TextInput(
-        label="Message Content",
-        style=discord.TextStyle.paragraph,
-        placeholder="Content written in this field will be displayed to everyone",
+    __content = dui.TextInput(
+        label="Text Content", 
+        style=discord.TextStyle.long,
         required=True,
-        max_length=2000,
+        max_length=2000
+    )
+    __name = dui.TextInput(
+        label="Name Identifier", 
+        placeholder="CAN NOT BE EDITED",
+        style=discord.TextStyle.short,
+        required=True,
+        max_length=50
     )
 
-    def __init__(self, author, /, content:str=None):
-        super().__init__(timeout=1200)
-        
+    def __init__(self, author: int, *, name:str=None, content:str=None):
+        super().__init__(title="Role Button Form", timeout=15*60)
+
         self.author = author
-        self.content.default = content
 
-    async def on_submit(self, interaction):
-        await interaction.response.send_message("your response has been recorded", ephemeral=True)
+        self.__content.default = content
+        self.__name.default = name
 
-    async def interaction_check(self, interaction: Interaction):
-        return self.author == interaction.user.id
+    @property
+    def content(self):
+        return self.__content.value
 
-class RoleButtonView(discord.ui.View):
-    """
-    The view that enables the behavior of the self assigner
-    """
+    @property
+    def name(self):
+        return self.__name.value
 
-    # new() creates a new role button view representation in the database
-
-    # fetch() finds a role button view representation in the database
-    # can return None if none is found
-
-    def is_a_button(self, role_id):
-        """
-        Checks if the role id passed has an active button within the view
-        """
-        
-        for child in self.children:
-            if child.role_id == role_id: return True
-
-        return False
-
-    def add_button(self, role:discord.Role, custom:str):
-        logger.debug("adding button for role: %s (%d)", role.name, role.id)
-
-        self.add_item(RoleButton(role, custom))
-
-    def remove_button(self, role:discord.Role):
-        logger.debug("removing button for role: %s (%d)", role.name, role.id)
-
-        self.remove_item(dutils.get(self.children, role_id=role.id))
 
     async def interaction_check(self, interaction: Interaction):
-        # TODO: check if the user can see the original message
+        return interaction.user.id == self.author
+
+    async def on_submit(self, interaction: Interaction):
+        await interaction.response.defer(thinking=False)
+
+
+class RoleButton(dui.Button):
+    """
+    The button that listens for interactions to assign roles
+    """
+
+    def __init__(self, role:discord.Role, *, custom_fmt:str):
+        super().__init__(
+            style=discord.ButtonStyle.blurple, 
+            label=role.name,
+            custom_id=custom_fmt % role.id
+        )
+        logger.info(custom_fmt, role.id)
+
+        self.custom_fmt = custom_fmt
+        self.role = role
+
+    async def callback(self, interaction: Interaction):
+
+        if self.role.id in [r.id for r in interaction.user.roles]:
+
+            await interaction.user.remove_roles(
+                self.role, 
+                reason="self assigned role"
+            )
+
+        else:
+
+            await interaction.user.add_roles(
+                self.role, 
+                reason="self assigned role"
+            )
         
-        return True
+        await interaction.response.send_message(
+            f"{interaction.user.mention}, your roles have been updated",
+            ephemeral=True
+        )
 
-class RoleSelectorView(discord.ui.View):
+
+class RoleButtonInterface(dui.View):
     """
-    Represents the view that allows the user to select roles to add to a self
-    assigner
-
-    stores a max of 5 selects with 25 roles each for a total max of 125 roles.
+    Hosts the buttons that assign a role on interaction. Can hold up to 25
+    buttons
     """
 
-    def __init__(self, o_interaction):
-        super().__init__(timeout=600)
-        self.o_interaction = o_interaction
+    def __init__(
+        self, 
+        client: Phoenix,
+        *,
+        name:str,
+        guild:discord.Guild,
+        message:discord.Message,
+        custom_fmt:str,
+        roles:typing.List[discord.Role]=[]
+    ):
+        super().__init__(timeout=None)
 
-        self.selections = []
+        self.__bot = client
+
+        self.name = name
+        self.guild = guild
+
+        self.message = message
+        self.roles = []
+        self.custom_fmt = custom_fmt
+
+        for role in roles:
+            self.add_button(role)
+
+    @classmethod
+    async def from_record(cls, client:Phoenix, *, record):
+        """"""
+
+        channel = await utils.get_or_fetch_channel(client, record['channelid'])
+
+        if channel is None:
+            return None
+
+        message = await utils.get_or_fetch_message(channel, record['messageid'])
+
+        if message is None:
+            return None
+
+        guild = await client.fetch_guild(channel.guild.id)
+        roles = await guild.fetch_roles()
+        active = list(filter(lambda x: x.id in record['roles'], roles))
+        active.sort(key=lambda x: x.position, reverse=True)
+
+        return cls(
+            client,
+            name=record['name'],
+            guild=channel.guild,
+            message=message, 
+            roles=active, 
+            custom_fmt=record['customfmt']
+        )
+
+    def add_button(self, role: discord.Role):
+        # TODO: Find a way to control insertion position
+        self.roles.append(role)
+        self.add_item(RoleButton(role, custom_fmt=self.custom_fmt))
+
+    def clear_items(self):
+        super().clear_items()
+
+        self.roles.clear()
+        return self
+
+    def sort_buttons(self):
+
+        buttons = self.children
+        buttons.sort(key=lambda x: x.role.position, reverse=True)
+
+        self.clear_items()
+
+        for button in buttons:
+            self.add_item(button)
+
+    async def send(self):
+        """
+        Sends the updated view to discord
+        """
+        await self.update()
+        await self.message.edit(view=self)
+
+    async def save(self):
+        
+        logger.debug("initial save of %s interface in %d", self.name, self.guild.id)
+
+        async with self.__bot.database.acquire() as conn:
+            await conn.execute(
+            """
+            INSERT INTO role_button_interfaces
+            (name, guildid, messageid, channelid, customfmt, roles)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            """, 
+            self.name, 
+            self.guild.id, 
+            self.message.id, 
+            self.message.channel.id, 
+            self.custom_fmt, 
+            [r.id for r in self.roles]
+        )
+
+    async def update(self):
+
+        logger.debug("update of %s interface in %d", self.name, self.guild.id)
+
+        async with self.__bot.database.acquire() as conn:
+            await conn.execute("""
+            UPDATE role_button_interfaces SET
+            roles=$1
+            WHERE name=$2 and guildid=$3
+            """, [r.id for r in self.roles], self.name, self.guild.id)
+
+
+class RoleSelectView(dui.View):
+    """
+    Hosts the roles that can be managed by the bot to be added to the role
+    button view
+    
+    """
+
+    def __init__(self, author:int, role_buttons: RoleButtonInterface, *, roles: typing.List[discord.Role]=[]):
+        super().__init__(timeout=60*15)
+
+        self.author = author
+
+        self.__submitted = False
+        self.__role_buttons = role_buttons
+        self.__selections = []
+        self.__editable_roles = roles
+        self.__build(roles)
 
     def __slice_builder(self, items, length):
         """
@@ -156,7 +261,23 @@ class RoleSelectorView(discord.ui.View):
         for i in range(0, len(items), length):
             yield items[i:i + length]
 
-    def build(self, roles: typing.List[discord.Role], /, callback, active_roles=[]):
+    async def interaction_check(self, interaction: Interaction):
+        return interaction.user.id == self.author
+
+    async def __select_callback(self, interaction):
+        """
+        Handles individual interactions
+        """
+
+        if self.__submitted:
+            await interaction.response.send_message(
+                "this view has already been submited",
+                ephemeral=True
+            )
+
+        await interaction.response.defer(thinking=False)
+
+    def __build(self, roles:typing.List[discord.Role]):
         """
         Adds selections to the view to allow selecting the roles of the guild
 
@@ -166,166 +287,252 @@ class RoleSelectorView(discord.ui.View):
         """
         
         for i, items in enumerate(list(self.__slice_builder(roles, 15))):
-            if i == 5: break
+            if i == 4: break
 
             select = discord.ui.Select(
                 placeholder="Roles selected will be added to the self assigner",
                 min_values=0, 
-                max_values=len(items),
+                max_values=len(items)
             )
 
             for role in items:
                 select.add_option(
                     label=role.name, 
                     value=str(role.id),
-                    default=role in active_roles
+                    default=role in self.__role_buttons.roles
                 )
 
-            select.callback = callback
+            select.callback = self.__select_callback
 
-            self.selections.append(select)
+            self.__selections.append(select)
             self.add_item(select)
 
-    async def interaction_check(self, interaction: Interaction):
-        logger.debug("checking select interaction")
-        
-        return interaction.user.id == self.o_interaction.user.id
+    @dui.button(label="Submit", style=discord.ButtonStyle.green)
+    async def _submit(self, interaction: Interaction, button: dui.Button):
+        """
+        Submits the select changes and disables the view.
+        """
 
-@app_commands.guild_only()
-class Main(app_commands.Group):
+        self.__submitted = True
 
-    def __init__(self, bot):
-        super().__init__(name="reacter")
+        await interaction.response.edit_message(
+            content="submission recorded", 
+            view=None
+        )
+
+        merged = []
+        for selector in self.__selections:
+            merged += selector.values
+            logger.debug("selected role buttons: %s", selector.values)
+
+        roles = list([discord.utils.get(self.__editable_roles, id=int(id)) for id in merged])
+        roles = list(filter(lambda x: x is not None, roles))
+        roles.sort(key=lambda x: x.position, reverse=True)
+
+        self.__role_buttons.clear_items()
+        for role in roles:
+            self.__role_buttons.add_button(role)
+
+        await self.__role_buttons.send()
+        logger.debug("is persistent: %s", str(self.__role_buttons.is_persistent()))
+
+
+class RoleInterfaceTransformer(app_commands.Transformer):
+
+    async def transform(self, interaction: Interaction, value: str):
+
+        result = discord.utils.get(
+            _interfaces, 
+            name=value, 
+            guild__id=interaction.guild.id
+        )
+
+        if result is None:
+            raise ValueError(f'{value} is not a valid role button interface')
+
+        return result
+
+    async def autocomplete(self, interaction: Interaction, value: str):
+        """
+        Returns the list of role button interfaces within the guild that match
+        value
+        """
+
+        _filter = lambda x: x.guild.id == interaction.guild.id and value in x.name
+        interfaces = filter(_filter, _interfaces)
+
+        return [app_commands.Choice(name=i.name, value=i.name) for i in interfaces]
+
+class RoleButtonsCommand(app_commands.Group):
+
+    def __init__(self, bot, cog):
+        super().__init__(name="roleb")
 
         self.bot = bot
-        logger.info("%s initialized" % __name__)
+        self.cog = cog
+        
 
     @app_commands.command(name="create")
-    async def _create(self, interaction: Interaction):
+    async def _create(
+        self, 
+        interaction: Interaction
+    ):
         """
-        Creates a new role button interface in this channel
+        Sends a modal form to retrieve the text content of the message that has
+        the role buttons
         """
-        
+
         form = RoleButtonForm(interaction.user.id)
         await interaction.response.send_modal(form)
 
-        result = await form.wait()
-        if result: return
+        failed = await form.wait()
 
-        # create message
-
-        view = RoleButtonView(timeout=None)
-        message = await interaction.channel.send(form.content, view=view)
-
-        # Insert into postgres
+        if failed: return
         
+        message = await interaction.channel.send(form.content)
 
-    @app_commands.command(name="add")
-    async def _add(self, interaction: Interaction, m_id: str, role: typing.Optional[discord.Role]):
-        """
-        Adds a single role to the self assignable roles
-        """
-        # First fetch the message with the buttons
-        message = await interaction.channel.fetch_message(int(m_id))
+        # Creates a new rolebutton interface
+        role_buttons = RoleButtonInterface(
+            interaction.client,
+            name=form.name,
+            guild=interaction.guild,
+            message=message,
+            custom_fmt=f"{interaction.id}-%d"
+        )
+        await role_buttons.save() # raises a postgres conflict error if one with name at guild already exists
+        # TODO: Figure out how to handle this and inform user
 
-        # search the database for the view defined
-        # TODO: Change into postgres form
-        # TODO: do not allow roles above the top_role of interaction.user
-        with sqlite3.connect("test.sqlite") as conn:
-            cursor = conn.execute("SELECT roles from role_buttons where message_id=?", (m_id,))
-        
-            active = [json.loads(i[0]) for i in cursor.fetchall()]
-            # if there is no returned value then there is no database entry
-            # this entry is invalid
-            if active is None or len(active) == 0:
-                await interaction.response.send_message(
-                    "this is not a valid self assigner",
-                    ephemeral=True
-                )
-                return
+        # now that unique errors are out of the way
+        _interfaces.append(role_buttons)
 
-        """
-        async with pool.acquire() as conn:
-            result = await conn.fetch("select * from role_buttons where message_id=$1", m_id)
-        
-        """
-
-        # Get all the guild roles, sort them and filter by active buttons and
-        # roles that the bot can edit
+        # Begin sending the role selection
         top_role = interaction.guild.me.top_role
-
-        all_roles = await interaction.guild.fetch_roles()
-        all_roles.sort(key=lambda x: x.position)
+        roles = await interaction.guild.fetch_roles()
+        editable_roles = list(filter(lambda x: x < top_role, roles))
         
-        editable_roles = list(filter(lambda x: x < top_role, all_roles))
-        active_roles = list(filter(lambda x: x.id in active, all_roles))
+        role_select = RoleSelectView(interaction.user.id, role_buttons, roles=editable_roles)
+
+        await interaction.followup.send(
+            "Select the roles to add to the list",
+            ephemeral=True, view=role_select
+        )
+
+    @app_commands.command(name="manage")
+    async def _manage(
+        self, 
+        interaction: Interaction,
+        interface: RoleInterfaceTransformer
+    ):
+        """
+        Sends a view that allows the selection of roles to be changed
+        """
+
+        # Begin sending the role selection
+        top_role = interaction.guild.me.top_role
+        roles = await interaction.guild.fetch_roles()
+        editable_roles = list(filter(lambda x: x < top_role, roles))
         
-        button_view = RoleButtonView()
-        selector_view = RoleSelectorView(interaction)
-
-        async def callback(s_interaction: Interaction):
-            """
-            Callback for the role selector. Is called once the selector is
-            exited and the role buttons should be updated
-            """
-            
-            logger.debug("selected changes")
-
-            merged = []
-            for selector in selector_view.selections:
-                merged += selector.values
-
-            roles = list([dutils.get(editable_roles, id=int(id)) for id in merged])
-            roles.sort(key=lambda x: x.position)
-
-            button_view.clear_items()
-            for role in roles:
-                button_view.add_button(role, custom="")
-
-            await message.edit(view=button_view)
-            await s_interaction.response.send_message("roles added", ephemeral=True)
-
-            # TODO Update database with new roles
-
-        selector_view.build(editable_roles, active_roles=active_roles, callback=callback)
+        role_select = RoleSelectView(interaction.user.id, interface, roles=editable_roles)
 
         await interaction.response.send_message(
-            "Selected roles will be self assignable to all who can see",
-            view=selector_view,
+            "Select the roles to add to the list",
+            ephemeral=True, view=role_select
+        )
+
+    @app_commands.command(name="refresh")
+    async def _refresh(
+        self, 
+        interaction: Interaction, 
+        interface: RoleInterfaceTransformer
+    ):
+        """
+        Refreshes the view to reorder or rename buttons
+        """
+
+        interface.sort_buttons()
+        await interface.send()
+
+        await interaction.response.send_message(
+            "Interface refreshed", 
             ephemeral=True
         )
 
-
-    @app_commands.command(name="addtest")
-    async def add(self, interaction: Interaction, m_id: str):
-        """
-        Sends a view to edit the role buttons
-        """
-
-
-
-    @app_commands.command(name="refresh")
-    async def _refresh(self, interaction: Interaction, m_id: str):
-        """
-        Refreshes the current active roles (removes any deleted roles), reorders
-        the buttons based on the role hierarchy
-        """
-
-        # takes the view
-        # iterates over it to find any no longer valid roles (deleted)
-        # updates the names and positioning of the buttons
-
     @app_commands.command(name="edit")
-    async def _edit(self, interaction: Interaction, m_id: str):
+    async def _edit(
+        self, 
+        interaction: Interaction,
+        interface: RoleInterfaceTransformer
+    ):
         """
-        Sends a modal to allow editing the text of the message and adding or
-        removing multiple roles at a time
+        Retrieves a message with the role buttons and sends a modal to edit the
+        text content
         """
 
-        # takes the view and message
-        # sends a create modal with the content filled from the message
-        # the editor can edit the text inside the message and the roles that can
-        # be toggled
+        form = RoleButtonForm(
+            interaction.user.id, 
+            name=interface.name,
+            content=interface.message.content
+        )
 
+        await interaction.response.send_modal(form)
+
+        failed = await form.wait()
+        if failed: return
+
+        await interface.message.edit(content=form.content)
+
+# If problems arise with views disabling, add a task to check the view consistency
+class Main(commands.Cog):
+
+    def __init__(self, bot):
+
+        self.bot: Phoenix = bot
+        self.role_button_command = RoleButtonsCommand(bot, self)
+
+        bot.tree.add_command(self.role_button_command)
+
+    async def cog_load(self):
+        logger.info("%s initialized", __name__)
+        logger.debug("reading database to enable role button interfaces")
+
+        async with self.bot.database.acquire() as conn:
+            records = await conn.fetch("""
+            select * from role_button_interfaces
+            """)
+
+        logger.debug("loading role button interfaces")
+
+        # This should never be the case but just in that off chance
+        for interface in _interfaces:
+            interface.stop()
+        
+        _interfaces.clear()
+        to_remove = []
+
+        for record in records:
+            view = await RoleButtonInterface.from_record(self.bot, record=record)
+            if view is None:
+                to_remove.append(record)
+                continue
+
+            # logger.debug("adding view to dispatch: %s", {**record})
+            self.bot.add_view(view)
+            _interfaces.append(view)
+
+        logger.info("role button interfaces loaded")
+
+        if (length := len(to_remove)) > 0:
+            logger.info("removing %d unresolved role button interfaces", length)
+
+            async with self.bot.database.acquire() as conn:
+                await conn.executemany(
+                    """
+                    DELETE FROM role_button_interfaces
+                    WHERE name=$1 and guildid=$2
+                    """, 
+                    [(record['name'], record['guildid']) for record in to_remove]
+                )
+
+    
 async def setup(bot):
-    bot.tree.add_command(Main(bot))
+    await bot.add_cog(Main(bot))
