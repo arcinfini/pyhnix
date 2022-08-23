@@ -340,6 +340,10 @@ class RoleSelectView(dui.View):
 class RoleInterfaceTransformer(app_commands.Transformer):
 
     async def transform(self, interaction: Interaction, value: str):
+        """
+        Transforms the value provided into an interface instance stored in the
+        _interfaces list
+        """
 
         result = discord.utils.get(
             _interfaces, 
@@ -355,7 +359,7 @@ class RoleInterfaceTransformer(app_commands.Transformer):
     async def autocomplete(self, interaction: Interaction, value: str):
         """
         Returns the list of role button interfaces within the guild that match
-        value
+        the value
         """
 
         _filter = lambda x: x.guild.id == interaction.guild.id and value in x.name
@@ -363,6 +367,7 @@ class RoleInterfaceTransformer(app_commands.Transformer):
 
         return [app_commands.Choice(name=i.name, value=i.name) for i in interfaces]
 
+@app_commands.default_permissions(manage_roles=True)
 class RoleButtonsCommand(app_commands.Group):
 
     def __init__(self, bot, cog):
@@ -400,7 +405,7 @@ class RoleButtonsCommand(app_commands.Group):
             custom_fmt=f"{interaction.id}-%d"
         )
         await role_buttons.save() # raises a postgres conflict error if one with name at guild already exists
-        # TODO: Figure out how to handle this and inform user
+        # TODO: handle unique errors and inform user
 
         # now that unique errors are out of the way
         _interfaces.append(role_buttons)
@@ -483,6 +488,10 @@ class RoleButtonsCommand(app_commands.Group):
 
 # If problems arise with views disabling, add a task to check the view consistency
 class Main(commands.Cog):
+    """
+    A cog tasked with loading and maintaining the different role button
+    interfaces used throughout the bot's servers.
+    """
 
     def __init__(self, bot):
 
