@@ -80,6 +80,14 @@ class Phoenix(commands.Bot):
                     )
 
     async def ensure_database(self):
+        """
+        Ensures the database is available through the pool connection
+
+        Uses env variables to connect to the postgres database through asyncpg.
+        This bot requires on the use of postgres and will not function without
+        it.
+        """
+
         if self.__pool is not None and not self.__pool._closed: return
 
         logger.warn("Database connection: initializing")

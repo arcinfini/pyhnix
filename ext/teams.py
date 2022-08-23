@@ -67,9 +67,6 @@ class Team:
         """
         Ensures both objects have the same name and guild id
         """
-        # inconsistencies can arise if the cache fails to update an existing
-        # team's properties TODO: solution rather than overwriting exisiting
-        # teams, update the internal attributes
         
         return self.name == other.name and self.guildid == other.guildid
 
@@ -94,7 +91,7 @@ class Team:
 
         async with self.team_cache.bot.database.acquire() as conn:
             await conn.execute("""
-            update esports_teams set 
+            update teams set 
                 members = array_append(members, $1)
             where name = $2 and guildid = $3
             """, member.id, self.name, self.guildid)
@@ -111,7 +108,7 @@ class Team:
 
             async with self.team_cache.bot.database.acquire() as conn:
                 await conn.execute("""
-                update esports_teams set 
+                update teams set 
                     members = array_remove(members, $1)
                 where name = $2 and guildid = $3
                 """, member.id, self.name, self.guildid)
@@ -133,7 +130,7 @@ class Team:
 
         async with self.team_cache.bot.database.acquire() as conn:
             await conn.execute("""
-            update esports_teams set
+            update teams set
                 name = COALESCE($1, name)
                 lead_roleid = COALESCE($2, lead_roleid)
                 member_roleid = COALESCE($3, member_roleid)
@@ -173,12 +170,16 @@ class Team:
 
         async with self.team_cache.bot.database.acquire() as conn:
             await conn.execute("""
-            delete from esports_teams
+            delete from teams
             where name = $1 and guildid = $2
             """, self.name, self.guildid)
 
 T = typing.TypeVar("T")
 class LRUCache(typing.Generic[T]):
+    """
+    A least recently used cache implemented to lower the database calls with the
+    team commands
+    """
 
     def __init__(self, *, limit:int=128):
         self.__limit = limit
@@ -235,7 +236,7 @@ class GuildTeamsCache(LRUCache[Teams]):
 
         async with self.bot.database.acquire() as conn:
             result = await conn.fetch("""
-            select * from esports_teams where guildid=$1
+            select * from teams where guildid=$1
             """, guild.id)
 
         # TODO: smarter iteration over existing items to raw_edit attributes
@@ -267,7 +268,7 @@ class GuildTeamsCache(LRUCache[Teams]):
 
         async with self.bot.database.acquire() as conn:
             await conn.execute("""
-            insert into esports_teams (name, guildid, lead_roleid, member_roleid, members)
+            insert into teams (name, guildid, lead_roleid, member_roleid, members)
             values ($1, $2, $3, $4, $5)
             """, name, guild.id, lead_role.id, member_role.id, [])
 
@@ -283,6 +284,7 @@ class GuildTeamsCache(LRUCache[Teams]):
         return team
 
 @app_commands.guild_only
+@app_commands.default_permissions(manage_roles=True)
 class Main(app_commands.Group):
 
     class TeamTransformer(app_commands.Transformer):
@@ -494,7 +496,7 @@ class Main(app_commands.Group):
         teams = await self.teams.force_fetch(interaction.guild)
 
         embed = discord.Embed(title="Team List")
-        for team in teams:
+        for team in teams.values():
             embed.add_field(name=team.name, value=str(team), inline=True)
 
         await interaction.response.send_message(
