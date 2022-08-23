@@ -1,15 +1,36 @@
 
-from dataclasses import fields
-import json, io
-
+import io
+import json
+import logging
+import typing
 from collections import namedtuple
-import typing, logging
-from discord import app_commands, Interaction
-import discord, discord.ui as dui
+from datetime import timedelta
+
+import discord
+import discord.ui as dui
+import discord.utils as dutils
+from discord import Interaction, app_commands
 
 logger = logging.getLogger(__name__)
 
-# TODO, FIX BREAKING BUGS
+"""
+TODO, FIX BREAKING BUGS
+leaving the default null value in the index field of the modal causes a casting
+error; check other typing issues
+(inspect and decide solution later; possible complex system of conversions)
+
+when selecting a field, the view updates and removes the visual cue of what is
+being edited
+~~(set default to selected index)~~
+
+prevent field index select from being used while there are no fields to edit 
+~~(set to disabled)~~
+
+check: if an embed error occurs, rollback to the previous change 
+~~(save embed before change and fix on error)~~
+
+TODO: Inform user of timeout time
+"""
 
 """
 embedb build [,m_id[, index]]
@@ -44,11 +65,7 @@ class Form(dui.Modal):
         return interaction.user.id==self.author
 
     async def on_submit(self, interaction: Interaction):
-        await interaction.response.defer()
-
-    async def on_error(self, interaction:Interaction, error):
-        """"""
-        raise error
+        await interaction.response.defer(thinking=False)
 
 class EmbedBuilderView(dui.View):
     """
@@ -62,22 +79,34 @@ class EmbedBuilderView(dui.View):
         super().__init__(timeout=60*15)
 
         self.embed:discord.Embed = embed
-        self.original_embed = discord.Embed.from_dict(embed.to_dict())
+        self.previous_embed = None
+        self.original_embed = self.__copy_embed()
         self.author = author
 
+        self.__selected_field:int = None 
+
         self.callback = post
+
+    def __copy_embed(self):
+        return discord.Embed.from_dict(self.embed.to_dict())
 
     def update_field_select(self):
         """
         Called when the fields are are altered and the field selection needs to
         be updated
+
+        TODO: If the length of fields is zero, disable the select
         """
+        is_selected = len(self.embed.fields) > 0
+        self._field_index.disabled = not is_selected
+        logger.debug("field index disabled %s", not is_selected)
 
         options=[
             discord.SelectOption(
                 label=field.name, 
                 description=index,
-                value=index
+                value=str(index),
+                default=index==self.__selected_field
             )
             for index, field in enumerate(self.embed.fields)
         ]
@@ -121,19 +150,32 @@ class EmbedBuilderView(dui.View):
         Refreshes the embed in the original interaction with the current embed
         stored within the view classes
         """
+        logger.debug("updating embed; with view %s", with_view)
+
+        timeout = f"<t:{int((dutils.utcnow() + timedelta(seconds=self.timeout)).timestamp())}>"
 
         if not interaction.response.is_done():
             await interaction.response.edit_message(
+                content=f"This interaction times out at {timeout}",
                 embed=self.embed,
                 view=self if with_view else discord.utils.MISSING,
             )
             return
 
         await interaction.followup.edit_message(
+            content=f"This interaction times out at {timeout}",
             embed=self.embed,
             view=self if with_view else discord.utils.MISSING,
             message_id=interaction.message.id
         )
+
+    def rollback(self):
+        """
+        Resets the embed to the last embed checkpoint
+        """
+
+        self.embed = self.previous_embed
+        self.previous_embed = None
 
     async def interaction_check(self, interaction: Interaction):
         return interaction.user.id == self.author
@@ -172,9 +214,13 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.title = response.title
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
     @dui.button(label="Description", style=discord.ButtonStyle.blurple, row=0)
     async def _description(self, interaction: Interaction, button: dui.Button):
@@ -191,9 +237,13 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.description = response.description
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
     @dui.button(label="Color", style=discord.ButtonStyle.blurple, row=0)
     async def _color(self, interaction: Interaction, button: dui.Button):
@@ -212,9 +262,13 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.color = discord.Color.from_str(response.color)
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
     @dui.button(label="Url", style=discord.ButtonStyle.blurple, row=0)
     async def _url(self, interaction: Interaction, button: dui.Button):
@@ -232,18 +286,15 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.url = response.url
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
-    # TODO: Implement
-    # @dui.button(label="timestamp", style=discord.ButtonStyle.blurple, row=0)
-    # async def _timestamp(self, interaction: Interaction):
-    #     """
-    #     Sends a modal to input a timestamp
-    #     """
-
-    @dui.button(label="image", style=discord.ButtonStyle.blurple, row=1)
+    @dui.button(label="Image", style=discord.ButtonStyle.blurple, row=1)
     async def _image(self, interaction: Interaction, button: dui.Button):
         """
         Sends a modal to accept input for an image
@@ -257,11 +308,15 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.set_image(url=response.url)
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
-    @dui.button(label="thumbnail", style=discord.ButtonStyle.blurple, row=1)
+    @dui.button(label="Thumbnail", style=discord.ButtonStyle.blurple, row=1)
     async def _thumbnail(self, interaction: Interaction, button: dui.Button):
         """
         """
@@ -274,11 +329,15 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.set_thumbnail(url=response.url)
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
-    @dui.button(label="author", style=discord.ButtonStyle.blurple, row=1)
+    @dui.button(label="Author", style=discord.ButtonStyle.blurple, row=1)
     async def _author(self, interaction: Interaction, button: dui.Button):
         """
         """
@@ -300,15 +359,19 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.set_author(
             name=response.name,
             url=response.url,
             icon_url=response.icon_url
         )
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
-    @dui.button(label="footer", style=discord.ButtonStyle.blurple, row=1)
+    @dui.button(label="Footer", style=discord.ButtonStyle.blurple, row=1)
     async def _footer(self, interaction: Interaction, button: dui.Button):
         """
         """
@@ -326,28 +389,31 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         self.embed.set_footer(
             text=response.text,
             icon_url=response.icon_url
         )
 
-        await self.update(interaction)
+        try: await self.update(interaction)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
-    @dui.select(placeholder="Field Index", options=[discord.SelectOption(label="null")], row=2, min_values=0, max_values=1)
+    @dui.select(placeholder="Field Index", options=[discord.SelectOption(label="null")], row=2, disabled=True)
     async def _field_index(self, interaction: Interaction, select: dui.Select):
         """
         Disables the edit and remove field buttons if no item is selected
         """
-
-        # TODO: if item is selected then resend list with it selected
-        # send it not selected if not
-        # TODO: CHeck if null field is selected, do nothing if so
         
         selected = len(select.values)==0
 
         self._edit_field.disabled=selected
         self._remove_field.disabled=selected
 
+        self.__selected_field = select.values[0] if selected else None
+
+        self.update_field_select()
         await self.update(interaction, with_view=True)
 
     @dui.button(label="Create Field", style=discord.ButtonStyle.green, row=3)
@@ -359,7 +425,7 @@ class EmbedBuilderView(dui.View):
         response = await self.prompt(
             interaction, button,
             index=self.input("index: enter a positive number",
-                default=len(self.embed.fields),
+                default=str(len(self.embed.fields)),
                 style=discord.TextStyle.short,
                 max_length=2,
             ),
@@ -377,18 +443,22 @@ class EmbedBuilderView(dui.View):
                 default=int(False),
                 required=True,
                 style=discord.TextStyle.short,
-                max_length=1
+                max_length=1,
             )
         )
 
-        self.embed.insert_field_at(int(response.index if response.index != '' else None), 
+        self.previous_embed = self.__copy_embed()
+        self.embed.insert_field_at(int(response.index if response.index != '' else len(self.embed.fields)), 
             name=response.name, 
             value=response.value, 
             inline=bool(response.inline)
         )
         
         self.update_field_select()
-        await self.update(interaction, with_view=True)
+        try: await self.update(interaction, with_view=True)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
     @dui.button(label="Edit Field", style=discord.ButtonStyle.blurple, row=3, disabled=True)
     async def _edit_field(self, interaction: Interaction, button: dui.Button):
@@ -403,7 +473,7 @@ class EmbedBuilderView(dui.View):
         response = await self.prompt(
             interaction, button,
             index=self.input("index: enter a positive number",
-                default=index,
+                default=str(index),
                 style=discord.TextStyle.short,
                 max_length=2,
             ),
@@ -427,7 +497,8 @@ class EmbedBuilderView(dui.View):
             )
         )
 
-        new_index = int(response.index if response.index != '' else None)
+        self.previous_embed = self.__copy_embed()
+        new_index = int(response.index if response.index != '' else index)
         if new_index != index:
             # TODO: Fix the logic behind this. It doesn't always work as planned when moving a field forward
             self.embed.insert_field_at(new_index, 
@@ -445,7 +516,12 @@ class EmbedBuilderView(dui.View):
                 inline=response.inline
             )
 
-        await self.update(interaction, with_view=new_index!=index)
+        self.__selected_field=new_index
+        self.update_field_select()
+        try: await self.update(interaction, with_view=True)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
     @dui.button(label="Remove Field", style=discord.ButtonStyle.red, row=3, disabled=True)
     async def _remove_field(self, interaction: Interaction, button: dui.Button):
@@ -458,10 +534,15 @@ class EmbedBuilderView(dui.View):
 
         index = int(self._field_index.values[0])
 
+        self.previous_embed = self.__copy_embed()
         self.embed.remove_field(index)
         
+        self.__selected_field=None
         self.update_field_select()
-        await self.update(interaction, with_view=True)
+        try: await self.update(interaction, with_view=True)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
 
     @dui.button(label="Clear Fields", style=discord.ButtonStyle.red, row=3)
@@ -472,10 +553,15 @@ class EmbedBuilderView(dui.View):
 
         # TODO: Prompt for confirmation
 
+        self.previous_embed = self.__copy_embed()
         self.embed.clear_fields()
 
+        self.__selected_field=None
         self.update_field_select()
-        await self.update(interaction, with_view=True)
+        try: await self.update(interaction, with_view=True)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
     @dui.button(label="Restart", style=discord.ButtonStyle.red, row=4)
     async def _restart(self, interaction: Interaction, button: dui.Button):
@@ -486,7 +572,9 @@ class EmbedBuilderView(dui.View):
 
         self.embed = discord.Embed.from_dict(self.original_embed.to_dict())
 
-        await self.update(interaction)
+        self.__selected_field=None
+        self.update_field_select()
+        await self.update(interaction, with_view=True)
 
     @dui.button(label="import", style=discord.ButtonStyle.green, row=4)
     async def _import(self, interaction: Interaction, button: dui.Button):
@@ -502,10 +590,16 @@ class EmbedBuilderView(dui.View):
             )
         )
 
+        self.previous_embed = self.__copy_embed()
         embed = discord.Embed.from_dict(json.loads(response.content))
         self.embed = embed
 
-        await self.update(interaction)
+        self.__selected_field=None
+        self.update_field_select()
+        try: await self.update(interaction, with_view=True)
+        except Exception as e: 
+            self.rollback()
+            raise e
 
     @dui.button(label="export", style=discord.ButtonStyle.green, row=4)
     async def _export(self, interaction: Interaction, button: dui.Button):
@@ -547,7 +641,6 @@ class Main(app_commands.Group):
         """
         Sends an embed builder
         """
-        # TODO: Allow editing of existing embeds by message-id search
 
         embed = discord.Embed(title="Embed Builder")
         
@@ -558,15 +651,39 @@ class Main(app_commands.Group):
         
         builder = EmbedBuilderView(interaction.user.id, embed, post=callback)
 
+        timeout = f"<t:{int((dutils.utcnow() + timedelta(seconds=builder.timeout)).timestamp())}>"
+
         await interaction.response.send_message(
+            f"This interaction times out at {timeout}",
             embed=embed,
             view=builder,
             ephemeral=True
         )
 
-    # TODO: Allow editing an embed in an existing message
-
 
 
 async def setup(bot):
     bot.tree.add_command(Main(bot))
+
+    @bot.tree.context_menu(name="embedbedit")
+    async def edit(interaction: Interaction, message: discord.Message):
+        if message.author.id != interaction.client.user.id:
+            raise app_commands.CheckFailure("I do not have permission to edit this message")
+
+        if len(message.embeds) < 1:
+            raise app_commands.CheckFailure("There are no embeds to edit")
+
+        embed = message.embeds[0]
+
+        async def callback(build_view):
+
+            await message.edit(embed=build_view.embed)
+
+        builder = EmbedBuilderView(interaction.user.id, embed, post=callback)
+        builder.update_field_select()
+
+        await interaction.response.send_message(
+            embed=embed,
+            view=builder,
+            ephemeral=True
+        )
