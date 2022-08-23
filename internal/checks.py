@@ -1,8 +1,7 @@
 
 
 from discord.ext import commands
-
-from .utils import checks
+from .utils import helper
 
 async def is_bot_admin():
     """
@@ -10,5 +9,5 @@ async def is_bot_admin():
     """
     
     def predicate(ctx: commands.Context):
-        return checks.is_bot_admin(ctx.author)
+        return helper.is_bot_admin(ctx.author)
     return commands.check(predicate)
