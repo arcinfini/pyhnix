@@ -1,6 +1,17 @@
 
+"""
+Misc functions used in other multiple other parts of the bot's code
+"""
+
 from discord.ext import commands
 import discord
+
+def is_bot_admin(user:discord.User):
+    """
+    Checks if the user is a bot admin
+    """
+
+    return user.id==229779964898181120 # currently strictly checks if it is me
 
 async def get_or_fetch_channel(bot: commands.Bot, channel_id):
     channel = bot.get_channel(channel_id)

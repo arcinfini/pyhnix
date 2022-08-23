@@ -1,16 +1,20 @@
-import logging, datetime, traceback
-from re import RegexFlag, compile as re_compile
+import logging
+import traceback
 from io import BytesIO
+from re import RegexFlag
+from re import compile as re_compile
 from typing import Optional
 
-from discord.ext import commands
-from discord import Interaction
-import discord.ui as dui
 import discord
+import discord.ui as dui
+from discord import Interaction
+from discord.ext import commands
 
 logger = logging.getLogger(__name__)
 
-# from utils.checks import is_botadmin
+import internal.app_errors as app_errors
+from internal import checks
+from internal.utils import is_bot_admin
 
 """
 Reimplement timeout portion
@@ -48,13 +52,17 @@ class ExecuteView(dui.View):
         message_reference = interaction.message.reference
         eval_message = await interaction.channel.fetch_message(message_reference.message_id)
 
-        # TODO: CHeck if user has clearance for command usage
+        # Check if user has clearance for command usage
         # if they do not then inform and then run the delete action
+        if not is_bot_admin(interaction.user):
+            await self._delete.callback(interaction)
+            raise app_errors.ClearanceError("You do not have clearance to use this")
 
         if eval_message is None:
             interaction.message.delete()
             await interaction.response.send_message(
-                "The originating eval has been deleted. Cleaning"
+                "The originating eval has been deleted. Cleaning",
+                ephemeral=True
             )
             return False
 
@@ -92,7 +100,7 @@ class ExecuteView(dui.View):
             file = None
             if len(formatted) > 2000:
                 file= discord.File(BytesIO(bytes(result, "utf=8")), filename="result.txt")
-                formatted = self.format_dt("result contents too large, sending fine")
+                formatted = self.format_dt("result contents too large, sending as file")
             
             await interaction.message.edit(
                 content=formatted, allowed_mentions=discord.AllowedMentions.none(),
@@ -101,7 +109,10 @@ class ExecuteView(dui.View):
 
     @dui.button(label="delete", style=discord.ButtonStyle.red)
     async def _delete(self, interaction: Interaction, button: dui.Button):
-        
+        """
+        Deletes the eval result message
+        """
+
         message = interaction.message
         await message.delete()
 
@@ -109,9 +120,6 @@ class Main(commands.Cog, name='code'):
     """
     allows for code to be ran externally
     """
-    class EvalConverter(commands.FlagConverter, prefix='-', delimiter=' '):
-        timeout: Optional[int] = commands.Flag(aliases=['t'], default=3600)
-        constant: Optional[bool] = commands.Flag(aliases=['b'], default=False)
     
     def __init__(self, bot):
         self.bot:commands.Bot = bot
@@ -141,7 +149,7 @@ class Main(commands.Cog, name='code'):
         self.EVAL_VIEW.stop()
 
     @commands.command(aliases=['aexec'])
-    # @is_botadmin()
+    @checks.is_bot_admin()
     async def eval(self, ctx:commands.Context, *, code:str):
         """
         Enables an eval view
