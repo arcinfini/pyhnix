@@ -23,7 +23,7 @@ class Main(commands.Cog, name="terminal"):
 
     @app_commands.command(name="reload", description="reloads a bot extension")
     @app_commands.describe(extension="the extension to reload")
-    @app_commands.guilds(guild_ids=[970761243277266944])
+    @app_commands.guilds(970761243277266944)
     @app_checks.is_bot_admin()
     async def _reload(self, interaction:Interaction, extension:str):
         """This is a bot dev command and access is restricted"""
@@ -46,7 +46,7 @@ class Main(commands.Cog, name="terminal"):
         return [x(value) for value in filter(contains, self.bot.extensions)]
 
     @app_commands.command(name="kill")
-    @app_commands.guilds(guild_ids=[970761243277266944])
+    @app_commands.guilds(970761243277266944)
     @app_checks.is_bot_admin()
     async def _kill(self, interaction: Interaction):
         
