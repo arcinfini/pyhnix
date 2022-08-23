@@ -18,7 +18,7 @@ remove view on timeout
 re-add is botadmin check
 """
 
-CODESTRING = r".*(eval|aexec)\s+?`{3}(py)?\n?(?P<code>[\s\S]*?)`{3}\n?\s*(?P<content>[\s\S]*)"
+CODESTRING = r".*(eval|aexec)\s+?(?P<markdown>`{3})?(python|py)?\n?(?P<code>[\s\S]*)(?(markdown)`{3}|)\n?\s*(?P<content>[\s\S]*)"
 CODEPATTERN = re_compile(CODESTRING, RegexFlag.IGNORECASE)
 
 class ExecuteView(dui.View):
