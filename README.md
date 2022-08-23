@@ -4,19 +4,19 @@
 1. ~~send the .env file as the environment to the bot container and only load_dotenv when the bot is in test mode~~
 2. ~~Figure out how to maintain volumes and enable this for logging~~
 3. ~~create a new docker container to work with postgres~~
-4. implement command tree error handling and more
+4. ~~implement command tree error handling and more~~ partially done
 5. have pgadmin save server registration
 6. ~~create more logging within bot development (on awake, on command use, on interaction use)~~
 7. ~~gracefully terminate python bot during `docker-compose down`~~ I think I did?
 8. ~~see if there are any network configurations I should make and override default if needed~~
 9. ~~see if profiles are useful. maybe they will allow test builds~~
 
-10. finish teams implementation
-11. bugtest rolebuttons and refactor + implement database calls
-12. review embedbuilder
+10. ~~finish teams implementation~~
+11. ~~bugtest rolebuttons and refactor + implement database calls~~
+12. ~~review embedbuilder~~
 13. work on schedule.py
-14. [postgres log listener ?](https://magicstack.github.io/asyncpg/current/api/index.html#asyncpg.connection.Connection.add_log_listener)
-15. update to most recent d.py repo
+14. ~~[postgres log listener ?](https://magicstack.github.io/asyncpg/current/api/index.html#asyncpg.connection.Connection.add_log_listener)~~
+15. ~~update to most recent d.py repo~~
 
 # Docker Compose
 
