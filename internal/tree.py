@@ -20,7 +20,7 @@ class PhoenixTree(app_commands.CommandTree):
     async def interaction_check(self, interaction: Interaction):
         if (command := interaction.command) is not None:
 
-            logger.debug("interaction issued: %s", command.qualified_name)
+            logger.debug("interaction issued; by: %s, %d", command.qualified_name, interaction.user.id)
 
         return True
 
@@ -59,7 +59,17 @@ class PhoenixTree(app_commands.CommandTree):
 
             embed = discord.Embed(
                 "Clearance Error", 
-                description=str(error)
+                description=str(error),
+                color=discord.Color.yellow()
+            )
+
+            await self.maybe_responded(interaction, embed=embed, ephemeral=True)
+            return
+        elif isinstance(error, app_errors.TransformationError):
+            embed = discord.Embed(
+                "Transformation Error", 
+                description=str(error),
+                color=discord.Color.yellow()
             )
 
             await self.maybe_responded(interaction, embed=embed, ephemeral=True)

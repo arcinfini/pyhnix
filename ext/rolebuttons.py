@@ -6,7 +6,7 @@ import discord.ui as dui
 import discord
 
 from internal.client import Phoenix
-from internal import utils
+from internal import utils, app_errors
 
 logger = logging.getLogger(__name__)
 
@@ -352,7 +352,9 @@ class RoleInterfaceTransformer(app_commands.Transformer):
         )
 
         if result is None:
-            raise ValueError(f'{value} is not a valid role button interface')
+            raise app_errors.TransformationError(
+                f'{value} is not a valid role button interface'
+                )
 
         return result
 

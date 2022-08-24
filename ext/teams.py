@@ -292,7 +292,9 @@ class Main(app_commands.Group):
             team = teams.get(value)
 
             if team is None:
-                raise ValueError("Team '{}' not found in database" % value)
+                raise app_errors.TransformationError(
+                    "Team '{}' not found in database" % value
+                )
 
             return team
 
