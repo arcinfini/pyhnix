@@ -46,20 +46,26 @@ class PhoenixTree(app_commands.CommandTree):
         await channel.send(embed=embed, file=file)
 
     async def on_error(self, interaction: Interaction, error: Exception):
-        # check error
-            # ClearanceError (the user does not have the valid role clearance)
-        # input error
-            # transformer conversion error (the transformer did not produce a valid variable)
+        logger.debug("error reached: %s", type(error))
 
-        # environment error (this command was done in the wrong location)
+        if isinstance(error, app_commands.CommandInvokeError):
+            cause = error.__cause__
+            
+            if isinstance(cause, discord.Forbidden):
 
-        # if not caught, send error to discord logs
+                embed = discord.Embed(
+                    title="Forbidden Error",
+                    description="```fix\nLooks like I am unable to preform this action```",
+                    color=discord.Color.yellow()
+                )
 
-        if isinstance(error, app_errors.ClearanceError):
+                await self.maybe_responded(interaction, embed=embed, ephemeral=True)
+                # dont return, propogate error to be visible
+        elif isinstance(error, app_errors.ClearanceError):
 
             embed = discord.Embed(
-                "Clearance Error", 
-                description=str(error),
+                title="Clearance Error", 
+                description=f"```fix\n{str(error)}```",
                 color=discord.Color.yellow()
             )
 
@@ -67,19 +73,20 @@ class PhoenixTree(app_commands.CommandTree):
             return
         elif isinstance(error, app_errors.TransformationError):
             embed = discord.Embed(
-                "Transformation Error", 
-                description=str(error),
+                title="Transformation Error", 
+                description=f"```fix\n{str(error)}```",
                 color=discord.Color.yellow()
             )
 
             await self.maybe_responded(interaction, embed=embed, ephemeral=True)
             return
-
-        await self.maybe_responded(
-            interaction, 
-            "an unhandled error occured, notifying the bot dev",
-            ephemeral=True
-        )
+        else:
+            # if caught by nothing
+            await self.maybe_responded(
+                interaction, 
+                "```fix\nan unhandled error occured, notifying the bot dev```",
+                ephemeral=True
+            )
 
         try: await self.alert(interaction, error)
         except Exception as e: await super().on_error(interaction, e)
