@@ -314,12 +314,17 @@ class RoleSelectView(dui.View):
             )
 
             for role in items:
-                select.add_option(
+                option = discord.SelectOption(
                     label=role.name, 
                     value=str(role.id),
                     default=role in self.__role_buttons.roles
                 )
-                select._values = [o.name for o in select.options]
+                select.append_option(option)
+
+                # Fills the _values attribute with default selected options
+                # overwritten once an interaction is given
+                if option.default:
+                    select._values.append(option.label)
 
             select.callback = self.__select_callback
 
@@ -539,14 +544,17 @@ class Main(commands.Cog):
         to_remove = []
 
         for record in records:
-            view = await RoleButtonInterface.from_record(self.bot, record=record)
-            if view is None:
-                to_remove.append(record)
-                continue
+            try:
+                view = await RoleButtonInterface.from_record(self.bot, record=record)
+                if view is None:
+                    to_remove.append(record)
+                    continue
 
-            # logger.debug("adding view to dispatch: %s", {**record})
-            self.bot.add_view(view)
-            _interfaces.append(view)
+                # logger.debug("adding view to dispatch: %s", {**record})
+                self.bot.add_view(view)
+                _interfaces.append(view)
+            except discord.Forbidden:
+                logger.debug("view passed due to inaccessibility")
 
         logger.info("role button interfaces loaded")
 
