@@ -6,7 +6,7 @@ import discord.ui as dui
 import discord
 
 from internal.client import Phoenix
-from internal import utils
+from internal import utils, app_errors
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ roleb edit
 roleb manage
 
 TODO: deletion, name editing
-TODO: no updates causes all buttons to disappear
+TODO: no updates causes all buttons to disappear !!!!!
 
 """
 
@@ -149,7 +149,9 @@ class RoleButtonInterface(dui.View):
 
     @classmethod
     async def from_record(cls, client:Phoenix, *, record):
-        """"""
+        """
+        Creates a RoleButtonInterface from the given record
+        """
 
         channel = await utils.get_or_fetch_channel(client, record['channelid'])
 
@@ -187,6 +189,9 @@ class RoleButtonInterface(dui.View):
         return self
 
     def sort_buttons(self):
+        """
+        Sorts the view buttons in order of decreasing position
+        """
 
         buttons = self.children
         buttons.sort(key=lambda x: x.role.position, reverse=True)
@@ -198,12 +203,19 @@ class RoleButtonInterface(dui.View):
 
     async def send(self):
         """
-        Sends the updated view to discord
+        Sends the updated view to the stored message
         """
         await self.update()
         await self.message.edit(view=self)
 
     async def save(self):
+        """
+        Saves the view to the database
+
+        Throws asyncpg UniqueViolationError if an interface with the same
+        identifier exists. Therefore this method is not used to update instances
+        of an interface
+        """
         
         logger.debug("initial save of %s interface in %d", self.name, self.guild.id)
 
@@ -223,6 +235,10 @@ class RoleButtonInterface(dui.View):
         )
 
     async def update(self):
+        """
+        Updates the internally stored roles in the view to be recaptured on cog
+        load
+        """
 
         logger.debug("update of %s interface in %d", self.name, self.guild.id)
 
@@ -283,10 +299,12 @@ class RoleSelectView(dui.View):
 
         The roles should be positioned from top to bottom (accurate to the
         discord hierarchy) and can have no more than 4 due to the extra content
-        field. This allows up to 100 roles to be supported through this method
+        field. This allows up to 15*4 roles to be supported through this method
         """
+        _roles = roles.copy()
+        _roles.sort(key=lambda x: x.position, reverse=True)
         
-        for i, items in enumerate(list(self.__slice_builder(roles, 15))):
+        for i, items in enumerate(list(self.__slice_builder(_roles, 15))):
             if i == 4: break
 
             select = discord.ui.Select(
@@ -296,11 +314,17 @@ class RoleSelectView(dui.View):
             )
 
             for role in items:
-                select.add_option(
+                option = discord.SelectOption(
                     label=role.name, 
                     value=str(role.id),
                     default=role in self.__role_buttons.roles
                 )
+                select.append_option(option)
+
+                # Fills the _values attribute with default selected options
+                # overwritten once an interaction is given
+                if option.default:
+                    select._values.append(option.label)
 
             select.callback = self.__select_callback
 
@@ -352,7 +376,9 @@ class RoleInterfaceTransformer(app_commands.Transformer):
         )
 
         if result is None:
-            raise ValueError(f'{value} is not a valid role button interface')
+            raise app_errors.TransformationError(
+                f'{value} is not a valid role button interface'
+                )
 
         return result
 
@@ -518,14 +544,17 @@ class Main(commands.Cog):
         to_remove = []
 
         for record in records:
-            view = await RoleButtonInterface.from_record(self.bot, record=record)
-            if view is None:
-                to_remove.append(record)
-                continue
+            try:
+                view = await RoleButtonInterface.from_record(self.bot, record=record)
+                if view is None:
+                    to_remove.append(record)
+                    continue
 
-            # logger.debug("adding view to dispatch: %s", {**record})
-            self.bot.add_view(view)
-            _interfaces.append(view)
+                # logger.debug("adding view to dispatch: %s", {**record})
+                self.bot.add_view(view)
+                _interfaces.append(view)
+            except discord.Forbidden:
+                logger.debug("view passed due to inaccessibility")
 
         logger.info("role button interfaces loaded")
 

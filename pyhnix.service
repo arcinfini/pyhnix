@@ -1,0 +1,16 @@
+[Unit]
+Description=Runs the docker containers to control the pyhnix execution
+Requires=network.target
+Requires=docker.service
+StartLimitBurst=5
+StartLimitIntervalSec=10
+
+[Service]
+User=root
+Type=simple
+Restart=on-failure
+WorkingDirectory=/root/pyhnix
+ExecStart=/usr/bin/docker compose --profile build up
+
+[Install]
+WantedBy=multi-user.target
