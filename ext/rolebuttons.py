@@ -324,7 +324,7 @@ class RoleSelectView(dui.View):
                 # Fills the _values attribute with default selected options
                 # overwritten once an interaction is given
                 if option.default:
-                    select._values.append(option.label)
+                    select._values.append(option.value)
 
             select.callback = self.__select_callback
 
