@@ -22,12 +22,6 @@ team edit teamname
 TLDRTODO
 
 1. update instead of replace teams on force_fetch
-2. ~~implement team.edit~~
-3. ~~implement team.raw_edit~~
-4. ~~implement team.delete()~~
-5. add ephemeral tags to responses
-6. finish team_info stub
-7. ~~implement command permission checks~~
 
 """
 
@@ -298,7 +292,9 @@ class Main(app_commands.Group):
             team = teams.get(value)
 
             if team is None:
-                raise ValueError("Team '{}' not found in database" % value)
+                raise app_errors.TransformationError(
+                    "Team '{}' not found in database" % value
+                )
 
             return team
 
@@ -353,6 +349,11 @@ class Main(app_commands.Group):
         return True
 
     @app_commands.command(name="create")
+    @app_commands.describe(
+        name="The name of the team",
+        lead="The role that corresponds to the team lead",
+        role="The role that is given to members of the team"
+    )
     async def _create(
         self, 
         interaction: Interaction, 
@@ -379,6 +380,9 @@ class Main(app_commands.Group):
         await interaction.response.send_message(f"{team.name} was created")
 
     @app_commands.command(name="delete")
+    @app_commands.describe(
+        team="The name of the team"
+    )
     async def _delete(self, interaction: Interaction, team: TeamTransformer):
         """
         Deletes a team from the guild. Asks for clarification. 
@@ -396,6 +400,12 @@ class Main(app_commands.Group):
         await interaction.response.send_message(f"{team.name} was deleted")
 
     @app_commands.command(name="edit")
+    @app_commands.describe(
+        team="The name of the team",
+        name="The new name to give to the team",
+        lead="The new role to correspond to the team lead",
+        role="The new role that is given to members of the team"
+    )
     async def _edit(
         self, 
         interaction: Interaction, 
@@ -426,6 +436,11 @@ class Main(app_commands.Group):
         )
 
     @app_commands.command(name="members")
+    @app_commands.describe(
+        team="The name of the team to add",
+        user="The user to manage",
+        action="The action to take on the user"
+    )
     async def _members(
         self, 
         interaction: Interaction,
@@ -458,7 +473,8 @@ class Main(app_commands.Group):
 
             await interaction.response.send_message(
                 f"{member.mention} added to {team.name}",
-                allowed_mentions=None
+                allowed_mentions=None,
+                ephemeral=True
             )
             return
         
@@ -474,7 +490,8 @@ class Main(app_commands.Group):
 
             await interaction.response.send_message(
                 f"{user.mention} removed from {team.name}",
-                allowed_mentions=None
+                allowed_mentions=None,
+                ephemeral=True
             )
             return
 
@@ -504,6 +521,9 @@ class Main(app_commands.Group):
         )
 
     @app_commands.command(name="info")
+    @app_commands.describe(
+        team="The name of the team"
+    )
     async def _info(self, interaction: Interaction, team: TeamTransformer):
         """
         Provides info about the given team.

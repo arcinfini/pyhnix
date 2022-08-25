@@ -150,7 +150,7 @@ class Main(commands.Cog, name='code'):
 
     @commands.command(aliases=['aexec'])
     @checks.is_bot_admin()
-    async def eval(self, ctx:commands.Context, *, code:str):
+    async def eval(self, ctx:commands.Context, *, code:str=None):
         """
         Enables an eval view
         """
