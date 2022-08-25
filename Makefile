@@ -20,7 +20,11 @@ uninstall: $(service)
 	@systemctl daemon-reload
 
 build: download
+<<<<<<< HEAD
 	@cd /root/pyhnix && /usr/bin/docker compose --profile build build
+=======
+	@cd /root/pyhnix && /usr/bin/docker compose --profiles build build
+>>>>>>> faabad88b2027d987e11dfe2fea51c9c95393d7b
 
 download:
 	@cd /root/pyhnix && git pull origin main
