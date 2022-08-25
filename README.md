@@ -25,3 +25,12 @@ The current workflow consists of separate branches based on the current version 
 - client: an extension of the default bot class to extend functionality
 - tree: an extension of the default tree class to enable application command error handling and command logging
 - a small number of util files and functions
+
+# Version release 1.0.1
+
+- teams front facing command documentation and ephemeral messages
+- further error handling within the tree class
+- implement a makefile to quickly install and build the application
+- fixed rolebutton interface selection not appearing in positional order
+- fixed embedbuilder edit field not correctly filling in the inline parameter
+- fixed rolebutton reset error on no updated selection
