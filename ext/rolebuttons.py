@@ -86,7 +86,7 @@ class RoleButton(dui.Button):
 
     def __init__(self, role:discord.Role, *, custom_fmt:str):
         super().__init__(
-            style=discord.ButtonStyle.blurple, 
+            style=discord.ButtonStyle.gray, 
             label=role.name,
             custom_id=custom_fmt % role.id
         )
