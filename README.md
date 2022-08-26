@@ -7,6 +7,16 @@
 
 The current workflow consists of separate branches based on the current version specification. The default branches are `main` and `dev`. The branch `main` is the branch where production code is released to. The server pulls from `main` on server startup. `dev` is used for development testing before being released to production. When working on separate versions, the naming scheme of `dev@X.X.X` is used. Most minor bug fixes and changes are updated on 0.0.X versions while new features are put on 0.X.0 versions.
 
+# How to use
+
+A makefile is included to deploy the bot to a production environment. The general dependencies to make this application are docker, make and python 3.8 or higher. `systemctl` is used to control the state of the docker compose.
+
+For the build to work correctly, it must be stored in `/root/pyhnix`.
+
+# How to develop
+
+The makefile includes a venv option that easily creates a venv and installs pip requirements.
+
 # Version release 1.0.0 
 
 ##### ext

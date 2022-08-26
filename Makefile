@@ -24,3 +24,8 @@ build: download
 
 download:
 	@cd /root/pyhnix && git pull origin main
+
+# Makes the venv for local testing and linting
+venv:
+	@python -m venv ./.venv
+	@. ./.venv/bin/activate && pip install -r ./requirements.txt
