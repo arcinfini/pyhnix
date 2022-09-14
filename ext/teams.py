@@ -148,7 +148,7 @@ class Team:
 
         async with self.team_cache.bot.database.acquire() as conn:
             updated = await conn.fetchrow("""
-            UPDATE teams SET
+            UPDATE team SET
                 name = COALESCE($1, name),
                 lead_roleid = COALESCE($2, lead_roleid),
                 member_roleid = COALESCE($3, member_roleid)
@@ -190,7 +190,7 @@ class Team:
         async with self.team_cache.bot.database.acquire() as conn:
             await conn.execute(
                 """
-                DELETE FROM teams
+                DELETE FROM team
                 WHERE id = $1
                 """, self.id
             )
@@ -268,7 +268,7 @@ class GuildTeamsCache(LRUCache[Teams]):
             result = await conn.fetch(
                 """
                 SELECT * 
-                FROM teams 
+                FROM team
                 WHERE guildid = $1
                 """, guild.id
             )
@@ -295,7 +295,7 @@ class GuildTeamsCache(LRUCache[Teams]):
         async with self.bot.database.acquire() as conn:
             record = await conn.fetchrow(
                 """
-                INSERT INTO teams (name, guildid, lead_roleid, member_roleid)
+                INSERT INTO team (name, guildid, lead_roleid, member_roleid)
                 VALUES ($1, $2, $3, $4)
                 RETURNING *;
                 """, 
