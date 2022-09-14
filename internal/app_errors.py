@@ -4,4 +4,6 @@ class ClearanceError(app_commands.CheckFailure):
     pass
 
 class TransformationError(app_commands.TransformerError):
-    pass
+    
+    def __init__(self, message, **kwargs):
+        super(Exception, self).__init__(message)
