@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument('--guild', '--server', '-g', type=int, default=970761243277266944, help='the id of the guild used for testing', dest='guild')
     parser.add_argument('--prefix', '-p', default='!', help='the command prefix to listen for; defaults to "!"', dest='prefix')
     parser.add_argument('--beta', '-b', action='store_true', help='enables the beta build', dest='beta')
-    parser.add_argument('--database', '-d', type=str, default='elonesports', help='the database in mongodb to use; defaults to "elonesports"', dest='database')
+    parser.add_argument('--database', '-d', type=str, default='POSTGRES_DB', help='the environment variable where the database name is stored; defaults to "POSTGRES_DB"', dest='database')
     parser.add_argument('--debug', '-D', default=False, action='store_true', dest='debug')
     parser.add_argument('--host', default='pyhnix-postgres', dest='host')
 
