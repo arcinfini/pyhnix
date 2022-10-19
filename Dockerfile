@@ -13,4 +13,7 @@ COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
-CMD python3 main.py
+CMD ["python3", "main.py"]
+
+# according to this page, this syntax for starting a command allows it to be
+# pid 1 which then means it receives the sigterm signal
