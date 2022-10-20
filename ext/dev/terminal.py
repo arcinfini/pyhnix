@@ -21,6 +21,12 @@ class Main(commands.Cog, name="terminal"):
         synced = await self.bot.tree.sync(guild=ctx.guild)
         logger.info(synced)
 
+    @commands.command()
+    @checks.is_bot_admin()
+    async def clear_apps(self, ctx:commands.Context):
+        self.bot.tree.clear_commands(guild=ctx.guild)
+        await self.bot.tree.sync(guild=ctx.guild)
+
     @app_commands.command(name="reload", description="reloads a bot extension")
     @app_commands.describe(extension="the extension to reload")
     @app_commands.guilds(970761243277266944)

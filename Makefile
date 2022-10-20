@@ -20,7 +20,7 @@ clean:
 # Reloads and enables the service
 .PHONY: install
 install:
-	@mv pyhnix.service $(service)
+	@cp pyhnix.service $(service)
 	@systemctl daemon-reload
 	@systemctl enable pyhnix
 	@systemctl start pyhnix

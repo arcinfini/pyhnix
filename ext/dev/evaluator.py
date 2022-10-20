@@ -22,7 +22,7 @@ remove view on timeout
 re-add is botadmin check
 """
 
-CODESTRING = r".*(eval|aexec)\s+?(?P<markdown>`{3})?(python|py)?\n?(?P<code>[\s\S]*)(?(markdown)`{3}|)\n?\s*(?P<content>[\s\S]*)"
+CODESTRING = r".*(eval|aexec)\s+?(?P<markdown>`{3})?(?P<language>postgresql|sql|python|py)?\n?(?P<code>[\s\S]*)(?(markdown)`{3}|)\n?\s*(?P<content>[\s\S]*)"
 CODEPATTERN = re_compile(CODESTRING, RegexFlag.IGNORECASE)
 
 class ExecuteView(dui.View):
@@ -59,7 +59,7 @@ class ExecuteView(dui.View):
             raise app_errors.ClearanceError("You do not have clearance to use this")
 
         if eval_message is None:
-            interaction.message.delete()
+            await interaction.message.delete()
             await interaction.response.send_message(
                 "The originating eval has been deleted. Cleaning",
                 ephemeral=True
@@ -80,13 +80,18 @@ class ExecuteView(dui.View):
         message = interaction.extras['eval_message']
 
         match = CODEPATTERN.match(message.content)
+        language = match.group('language')
         to_eval = match.group('code')
         content = match.group('content')
 
+        if language.lower() in ['postgresql', 'sql']:
+            to_eval = "\tasync with interaction.client.database.acquire() as conn:\n"+\
+                f"\t\treturn await conn.fetch('''{to_eval}''')"
+
         await interaction.response.defer()
 
+        result = ""
         try:
-            
             exec(
                 f'async def __ex(message, interaction, content, local): ' +
                 ''.join(f'\n {l}' for l in to_eval.split('\n'))
@@ -160,6 +165,7 @@ class Main(commands.Cog, name='code'):
 
     @commands.command(name='lambda')
     async def _lambda(self, ctx:commands.Context, *, code:str):
+        result = ""
         try: result = eval(code)
         except Exception as e: result = str(e)
         finally:
