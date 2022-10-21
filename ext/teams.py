@@ -94,7 +94,7 @@ class Team:
             members = await conn.fetch("""
             SELECT userid 
             FROM team_member
-            WHERE id = $1
+            WHERE teamid = $1
             """, self.id)
 
         return [m['userid'] for m in members]
@@ -588,6 +588,30 @@ class Main(app_commands.Group):
             embed=await self.team_info(team),
             ephemeral=True
         )
+
+    @app_commands.command(name="memberlist")
+    async def _memberlist(
+        self, 
+        interaction: Interaction, 
+        team: app_commands.Transform[Team, TeamTransformer]
+    ):
+        """
+        Provides a list of members that belong to the team
+        """
+
+        if not self.can_control_team(interaction.user, team):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
+
+        members = [f"<@{m}>" for m in await team.fetch_members()]
+        
+        result = ", ".join(members)
+        await interaction.response.send_message(
+            result, ephemeral=True
+        )
+
 
 
 async def setup(bot):
