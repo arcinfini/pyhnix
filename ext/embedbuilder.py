@@ -29,14 +29,6 @@ prevent field index select from being used while there are no fields to edit
 check: if an embed error occurs, rollback to the previous change 
 ~~(save embed before change and fix on error)~~
 
-TODO: Inform user of timeout time
-"""
-
-"""
-embedb build [,m_id[, index]]
-embedb edit m_id
-
-enables the building and editing of all embeds sent by the bot.
 """
 
 class Form(dui.Modal):
@@ -94,12 +86,11 @@ class EmbedBuilderView(dui.View):
         """
         Called when the fields are are altered and the field selection needs to
         be updated
-
-        TODO: If the length of fields is zero, disable the select
         """
+
+        # disables the select if no fields are present
         is_selected = len(self.embed.fields) > 0
         self._field_index.disabled = not is_selected
-        logger.debug("field index disabled %s", not is_selected)
 
         options=[
             discord.SelectOption(
@@ -110,6 +101,8 @@ class EmbedBuilderView(dui.View):
             )
             for index, field in enumerate(self.embed.fields)
         ]
+
+        # if fields are not present, fill options with one null option
         if len(options) == 0:
             options.append(discord.SelectOption(
                 label="Null"
@@ -440,7 +433,7 @@ class EmbedBuilderView(dui.View):
                 max_length=1024
             ),
             inline=self.input("inline: 0 for false and 1 for true",
-                default=int(False),
+                default="0",
                 required=True,
                 style=discord.TextStyle.short,
                 max_length=1,
@@ -490,7 +483,7 @@ class EmbedBuilderView(dui.View):
                 max_length=1024
             ),
             inline=self.input("inline: 0 for false and 1 for true",
-                default=int(field.inline),
+                default=str(int(field.inline)),
                 required=True,
                 style=discord.TextStyle.short,
                 max_length=1
