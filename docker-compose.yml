@@ -24,14 +24,14 @@ services:
       - /.data/pyhnix/bot/records:/bot/.records
     env_file: .env
 
-  pgadmin:
-    container_name: pyhnix-pgadmin4
-    image: dpage/pgadmin4
-    hostname: pyhnix-pgadmin
-    restart: always
-    env_file: .env
-    ports:
-      - "5050:80"
+  # pgadmin:
+  #   container_name: pyhnix-pgadmin4
+  #   image: dpage/pgadmin4
+  #   hostname: pyhnix-pgadmin
+  #   restart: always
+  #   env_file: .env
+  #   ports:
+  #     - "5050:80"
 
 volumes:
   pyhnix-postgres:
