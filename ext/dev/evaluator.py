@@ -16,12 +16,6 @@ import internal.app_errors as app_errors
 from internal import checks
 from internal.utils import is_bot_admin
 
-"""
-Reimplement timeout portion
-remove view on timeout
-re-add is botadmin check
-"""
-
 CODESTRING = r".*(eval|aexec)\s+?(?P<markdown>`{3})?(?P<language>postgresql|sql|python|py)?\n?(?P<code>[\s\S]*)(?(markdown)`{3}|)\n?\s*(?P<content>[\s\S]*)"
 CODEPATTERN = re_compile(CODESTRING, RegexFlag.IGNORECASE)
 
