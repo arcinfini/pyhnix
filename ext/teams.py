@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 from discord.ext import commands
 from discord import app_commands, Interaction
+import discord.ui as dui
 import discord, asyncpg
 
 
@@ -22,6 +23,7 @@ team edit teamname
 class MemberAction(enum.Enum):
     add = 0
     remove = 1
+    edit = 2
 
 class Team:
     """
@@ -309,6 +311,50 @@ class GuildTeamsCache(LRUCache[Teams]):
         
         return team
 
+class TeamUserEditView(dui.View):
+    """
+    TODO:
+    Inlcude some checks for role info to see if user is already part of team
+    """
+
+    def __init__(self, team):
+        super().__init__()
+        self.team = team
+
+    @dui.select(cls=dui.UserSelect, min_values=0, max_values=10)
+    async def _user_select(self, interaction: Interaction, select: dui.UserSelect):
+        
+        await interaction.response.defer(thinking=False)
+
+    @dui.button(label="Add to team")
+    async def _add_team(self, interaction: Interaction, button: dui.Button):
+
+        await interaction.response.defer(ephemeral=True)
+
+        for member in self._user_select.values:
+            await self.team.add_member(member)
+            await member.add_roles(
+                discord.Object(self.team.member_roleid), 
+                reason="add to team"
+            )
+
+        await interaction.followup.send("Members edited", ephemeral=True)
+
+
+    @dui.button(label="Remove from Team")
+    async def _remove_team(self, interaction: Interaction, button: dui.Button):
+
+        await interaction.response.defer(ephemeral=True)
+
+        for member in self._user_select.values:
+            await self.team.remove_member(member)
+            await member.remove_roles(
+                discord.Object(self.team.member_roleid), 
+                reason="remove from team"
+            )
+
+        await interaction.followup.send("Members edited", ephemeral=True)
+
 @app_commands.guild_only
 @app_commands.default_permissions(manage_roles=True)
 class Main(app_commands.Group):
@@ -534,6 +580,14 @@ class Main(app_commands.Group):
                 f"{user.mention} removed from {team.name}",
                 allowed_mentions=discord.AllowedMentions.none(),
                 ephemeral=True
+            )
+            return
+        
+        elif action == MemberAction.edit:
+
+            await interaction.response.send_message(
+                f"Select up to 10 members to add to the team {team.name}", 
+                ephemeral=True, view=TeamUserEditView(team)
             )
             return
 
