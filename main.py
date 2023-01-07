@@ -20,6 +20,21 @@ def parse_args():
     return parser.parse_args()
 
 def logger_setup(args):
+    """
+    Current Logger configuration:
+
+    logs are stored in the `.records` directory within the project files.
+    default discord logs are ignored and errors are propogated to the output
+    stream. 
+
+    there are two handlers: the rich handler and the rotating file handler. it
+    currently prints out to the stream a date, time and message desplaying the
+    info of the log.
+
+    debug mode can be enabled if the --debug flag is specified when running the
+    initial script.
+    """
+    
     if not os.path.isdir(".records"):
         os.mkdir(".records")
     
@@ -58,7 +73,11 @@ def main():
     
     bot = client.Phoenix(namespace=args)
     
-    bot.run(os.getenv(args.token))
+    token = os.getenv(args.token)
+    if token is None:
+        raise Exception("Missing bot token in argument: %s" % args.token)
+    
+    bot.run(token)
 
 if __name__ == "__main__":
     main()
