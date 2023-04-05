@@ -426,6 +426,39 @@ class Main(app_commands.Group):
         """
         return True
 
+    async def _clean(
+        self, 
+        interaction: Interaction, 
+        team: app_commands.Transform[Team, TeamTransformer]
+    ):
+        """Retreives all the members of a team and removes them from it"""
+
+        if not self.can_administrate_teams(interaction.user):
+
+            raise app_errors.ClearanceError(
+                "You do not have proper clearance to use this command"
+            )
+
+        failed = []
+
+        await interaction.response.defer(ephemeral=True)
+
+        mem_ids = await team.fetch_members()
+        for member_id in mem_ids:
+            try:
+                user = await interaction.client.fetch_user(member_id)
+                await team.remove_member(user)
+
+                member = await interaction.guild.fetch_member(member_id)
+                await member.remove_roles(discord.Object(team.member_roleid))
+            except:
+                failed.append(member_id)
+
+        f = ['<@{}>'.format(id) for id in failed]
+        await interaction.edit_original_response(
+            content=f"Completed interaction\nFailed for {f}"
+        )
+
     @app_commands.command(name="create")
     @app_commands.describe(
         name="The name of the team",
