@@ -426,6 +426,7 @@ class Main(app_commands.Group):
         """
         return True
 
+    @app_commands.command(name="clean")
     async def _clean(
         self, 
         interaction: Interaction, 
