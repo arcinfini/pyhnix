@@ -94,7 +94,7 @@ class Phoenix(commands.Bot):
         self.__pool = await asyncpg.create_pool(
             user=os.getenv('POSTGRES_USER'),
             password=os.getenv('POSTGRES_PASSWORD'),
-            host=self.namespace.host,
+            host=os.getenv("POSTGRES_HOST"),
             port=5432,
             database=os.getenv('POSTGRES_DB')
         )
