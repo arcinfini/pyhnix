@@ -120,7 +120,7 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
         )
         embed.set_footer(text="0/3")
 
-        channel = await interaction.guild.fetch_channel(970770312893456524)
+        channel = await interaction.guild.fetch_channel(1152411129465819207)
         await channel.send(embed=embed, view=self.view)
 
         await interaction.response.send_message("Time Requested", ephemeral=True)
