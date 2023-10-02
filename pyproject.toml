@@ -1,0 +1,13 @@
+[tool.black]
+line-length = 80
+target-version = ['py310']
+
+[tool.isort]
+line_length = 120
+profile = "black"
+skip_gitignore = true
+
+[tool.pyright]
+reportUnusedImport = "error"
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
