@@ -7,6 +7,7 @@ import discord
 from internal import errors
 
 
+
 class ScheduleModal(dui.Modal, title="Schedule Request"):
     start_time = dui.TextInput(
         label="Start Time",

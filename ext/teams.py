@@ -169,7 +169,14 @@ class Main(commands.Cog, name="Teams"):
             r.id for r in member.roles
         ] or self.can_administrate_teams(member)
 
-    async def interaction_check(self, interaction: Interaction):
+        if member is None:
+            return False
+
+        return team.lead_roleid in [
+            r.id for r in member.roles
+        ] or self.can_administrate_teams(member)
+
+    async def interaction_check(self, interaction: GuildInteraction):
         """
         member needs to have manage role permissions or administrator
         or to have the team lead role of the team they are attempting to manage
