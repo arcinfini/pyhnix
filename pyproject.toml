@@ -8,6 +8,6 @@ profile = "black"
 skip_gitignore = true
 
 [tool.pyright]
-reportUnusedImport = "error"
 pythonVersion = "3.10"
+useLibraryCodeForTypes = true
 typeCheckingMode = "basic"
