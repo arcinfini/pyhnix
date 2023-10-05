@@ -4,68 +4,7 @@ from discord.ext import commands
 from discord import app_commands, Interaction, ui as dui, TextStyle
 import discord
 
-
-class ApprovalView(dui.View):
-    def __init__(self, approval_id, deny_id):
-        super().__init__(timeout=None)
-
-        self._approve.custom_id = approval_id
-        self._deny.custom_id = deny_id
-
-        self.compiled = recompile(r"-?\d+/\d+")
-
-    async def interaction_check(
-        self, interaction: Interaction[Phoenix]
-    ) -> bool:
-        exec_id = interaction.client.config["ids"]["roles"]["executive"]
-        result = exec_id in [r.id for r in interaction.user.roles]
-
-        if not result:
-            await interaction.response.send_message(
-                "You can't do that", ephemeral=True
-            )
-
-        return result
-
-    @dui.button(label="Approve", style=discord.ButtonStyle.green)
-    async def _approve(self, interaction: Interaction, button: dui.Button):
-        """
-        Votes for the approval of the schedule change
-        """
-
-        embed = interaction.message.embeds[0]
-        vote = self.compiled.match(embed.footer.text)
-
-        if not vote:
-            return
-
-        current, required = [int(i) for i in vote.group(0).split("/")]
-
-        current += 1
-
-        embed.set_footer(text=f"{current}/{required}")
-
-        await interaction.response.edit_message(embed=embed)
-
-    @dui.button(label="Deny", style=discord.ButtonStyle.red)
-    async def _deny(self, interaction: Interaction, button: dui.Button):
-        """
-        Votes for the denial of the schedule change
-        """
-
-        embed = interaction.message.embeds[0]
-        vote = self.compiled.match(embed.footer.text)
-
-        if not vote:
-            return
-
-        current, required = [int(i) for i in vote.group(0).split("/")]
-
-        current += -1
-
-        embed.set_footer(text=f"{current}/{required}")
-
-        await interaction.response.edit_message(embed=embed)
+from internal import errors
 
 
 class ScheduleModal(dui.Modal, title="Schedule Request"):
@@ -91,10 +30,6 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
         style=TextStyle.short,
         placeholder="Yes or No",
     )
-
-    def __init__(self, view) -> None:
-        super().__init__()
-        self.view = view
 
     async def on_submit(self, interaction: Interaction[Phoenix]) -> None:
         """
@@ -128,8 +63,14 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
             "schedule-requests"
         ]
 
-        channel = await interaction.guild.fetch_channel(requestor_channel)
-        await channel.send(embed=embed, view=self.view)
+        if (guild := interaction.guild) is None: 
+            raise errors.InvalidInvocationError()
+
+        channel = await guild.fetch_channel(requestor_channel)
+        if not isinstance(channel, discord.TextChannel):
+            raise errors.InvalidInvocationError()
+
+        await channel.send(embed=embed)
 
         await interaction.response.send_message(
             "Time Requested", ephemeral=True
@@ -140,25 +81,15 @@ class Main(commands.Cog, name="Schedule"):
     def __init__(self, bot):
         self.bot: Phoenix = bot
 
-    async def cog_load(self):
-        self.APPROVAL_VIEW = ApprovalView(
-            approval_id=f"APPROVE-{self.bot.user.id}",
-            deny_id=f"DENY-{self.bot.user.id}",
-        )
-
-        self.bot.add_view(self.APPROVAL_VIEW)
-
-    async def cog_unload(self) -> None:
-        self.APPROVAL_VIEW.stop()
-
     request = app_commands.Group(
         name="request",
-        description="different subcommands allow for the request of different things",
+        description="different subcommands allow for the request of different \
+            things",
     )
 
     @request.command(name="schedule")
     async def _schedule(self, interaction: Interaction):
-        modal = ScheduleModal(view=self.APPROVAL_VIEW)
+        modal = ScheduleModal()
 
         await interaction.response.send_modal(modal)
 

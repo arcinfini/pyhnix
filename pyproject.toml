@@ -11,3 +11,6 @@ skip_gitignore = true
 pythonVersion = "3.10"
 useLibraryCodeForTypes = true
 typeCheckingMode = "basic"
+ignore = [
+    'ext/embedbuilder.py'
+]

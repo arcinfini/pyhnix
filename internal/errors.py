@@ -5,7 +5,7 @@ Behavior for errors are within the InternalError class and alternations are made
 in inherited classes. 
 """
 
-from typing import Type, Union
+from typing import Union
 
 from discord.ext import commands
 from discord import app_commands, Interaction, Embed
@@ -58,4 +58,8 @@ class InvalidParameterError(CheckFailure):
 
 
 class TransformationError(InvalidParameterError):
+    pass
+
+
+class InitializationError(InternalError):
     pass

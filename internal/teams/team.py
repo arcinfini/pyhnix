@@ -76,7 +76,7 @@ class Team:
 
     async def fetch_members(self) -> typing.List[int]:
         """
-        Returns a list of members that are currently a part of the team
+        Returns a list of user ids that are currently a member of the team
         """
 
         async with self.team_cache.bot.database.acquire() as conn:
@@ -91,7 +91,9 @@ class Team:
 
         return [m["userid"] for m in members]
 
-    async def add_member(self, user: discord.User):
+    async def add_member(
+        self, user: discord.Object | discord.User | discord.Member
+    ):
         """
         Adds a guild member to the team members
         """
@@ -109,7 +111,9 @@ class Team:
                 user.id,
             )
 
-    async def remove_member(self, user: discord.User):
+    async def remove_member(
+        self, user: discord.Object | discord.User | discord.Member
+    ):
         """
         Removes a user from the team members
         """

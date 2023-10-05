@@ -5,6 +5,8 @@ from .utils import helper
 from discord.ext import commands
 from discord import Interaction, app_commands
 
+Info = Union[Interaction, commands.Context]
+
 
 def check(predicate):
     """
@@ -33,7 +35,7 @@ def is_bot_admin():
     Checks if the author of the command is a bot admin
     """
 
-    def predicate(info: Interaction | commands.Context):
+    def predicate(info: Info):
         user = info.user if isinstance(info, Interaction) else info.author
 
         return helper.is_bot_admin(user)

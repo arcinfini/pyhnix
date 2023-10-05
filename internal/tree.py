@@ -1,8 +1,12 @@
-import traceback, io, logging
+import traceback, io, logging, typing
 from discord import app_commands, Interaction
 import discord
 
 from internal import errors
+
+
+if typing.TYPE_CHECKING:
+    from .client import Phoenix
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,9 @@ class PhoenixTree(app_commands.CommandTree):
 
         return True
 
-    async def alert(self, interaction: Interaction, error: Exception):
+    async def alert(
+        self, interaction: Interaction["Phoenix"], error: Exception
+    ):
         """
         Attempts to altert the discord channel logs of an exception
         """
@@ -46,12 +52,23 @@ class PhoenixTree(app_commands.CommandTree):
 
         embed = discord.Embed(
             title="Unhandled Exception Alert",
-            description=f"```\nContext: \nguild:{repr(interaction.guild)}\n{repr(interaction.channel)}\n{repr(interaction.user)}\n```",  # f"```py\n{content[2000:].strip()}\n```"
+            description=f"""```
+                Context:
+                guild:{repr(interaction.channel)}
+                {repr(interaction.user)}
+            ```""",
         )
+
+        if not isinstance(channel, discord.TextChannel):
+            return
 
         await channel.send(embed=embed, file=file)
 
-    async def on_error(self, interaction: Interaction, error: Exception):
+    async def on_error(
+        self,
+        interaction: Interaction["Phoenix"],
+        error: app_commands.AppCommandError,
+    ):
         logger.debug("error reached: %s", type(error))
 
         """Handles errors thrown within the command tree"""
@@ -82,11 +99,8 @@ class PhoenixTree(app_commands.CommandTree):
         try:
             await self.alert(interaction, error)
         except Exception as e:
-            await super().on_error(interaction, e)
+            exception = app_commands.AppCommandError(str(e))
 
-        try:
-            await self.alert(interaction, error)
-        except Exception as e:
-            await super().on_error(interaction, e)
+            await super().on_error(interaction, exception)
 
         await super().on_error(interaction, error)
