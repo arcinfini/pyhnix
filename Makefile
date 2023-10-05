@@ -12,6 +12,10 @@ dev: .venv
 	@echo "Installing dependencies..."
 	@. .venv/bin/activate && pip install -r requirements.txt 1> /dev/null
 
+.PHONY: lint
+lint: .venv dev
+	@python -m black --config pyproject.toml .
+
 .PHONY: clean
 clean:
 	rm -rf .venv
@@ -23,7 +27,7 @@ install:
 	@cp pyhnix.service $(service)
 	@systemctl daemon-reload
 	@systemctl enable pyhnix
-	@systemctl start pyhnix
+	@systemctl restart pyhnix
 	systemctl status pyhnix
 
 # Stops the service and removes its existence
