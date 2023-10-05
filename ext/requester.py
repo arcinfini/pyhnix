@@ -63,7 +63,7 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
             "schedule-requests"
         ]
 
-        if (guild := interaction.guild) is None: 
+        if (guild := interaction.guild) is None:
             raise errors.InvalidInvocationError()
 
         channel = await guild.fetch_channel(requestor_channel)

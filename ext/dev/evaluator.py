@@ -54,7 +54,7 @@ class ExecuteView(dui.View):
             - if the user has clearance for code execution
             - the user running the interaction is the author of the code
         """
-        
+
         if (
             (result_message := interaction.message) is None
             or (channel := interaction.channel) is None
@@ -103,7 +103,7 @@ class ExecuteView(dui.View):
         view's message. Then runs the code and edits the interaction message
         with the updated result.
         """
-        
+
         message = interaction.extras["eval_message"]
 
         match = CODEPATTERN.match(message.content)

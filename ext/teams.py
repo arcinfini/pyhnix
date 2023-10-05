@@ -471,7 +471,7 @@ class Main(commands.Cog, name="Teams"):
         """
         Provides a list of members that belong to the team
         """
-        
+
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
