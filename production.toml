@@ -3,7 +3,7 @@ server = 465592556667928596
 bot-admins = [
     229779964898181120
 ]
-prefix = "a!"
+prefix = "!"
 
 [ids.roles]
 executive = 484489190801801218
