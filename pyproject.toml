@@ -8,15 +8,9 @@ profile = "black"
 skip_gitignore = true
 
 [tool.pyright]
-<<<<<<< HEAD
 pythonVersion = "3.10"
 useLibraryCodeForTypes = true
 typeCheckingMode = "basic"
 ignore = [
     'ext/embedbuilder.py'
 ]
-=======
-reportUnusedImport = "error"
-pythonVersion = "3.10"
-typeCheckingMode = "basic"
->>>>>>> cb56ca6 (Update to conform to some typehinting and minor but better organization. Black formatting as well.)
