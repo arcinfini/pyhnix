@@ -149,7 +149,7 @@ class ExecuteView(dui.View):
                     "result contents too large, sending as file"
                 )
 
-            await interaction.response.edit_message(
+            await interaction.edit_original_response(
                 content=formatted,
                 allowed_mentions=discord.AllowedMentions.none(),
                 attachments=[file] if file is not None else [],
