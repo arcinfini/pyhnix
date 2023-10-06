@@ -62,7 +62,7 @@ class ExecuteView(dui.View):
         ):
             return False
 
-        if not isinstance(channel, discord.TextChannel):
+        if not isinstance(channel, discord.abc.Messageable):
             return False
 
         # Gets the message that contains the code

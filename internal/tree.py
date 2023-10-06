@@ -59,7 +59,7 @@ class PhoenixTree(app_commands.CommandTree):
             ```""",
         )
 
-        if not isinstance(channel, discord.TextChannel):
+        if not isinstance(channel, discord.abc.Messageable):
             return
 
         await channel.send(embed=embed, file=file)
