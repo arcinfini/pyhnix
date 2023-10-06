@@ -67,7 +67,7 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
             raise errors.InvalidInvocationError()
 
         channel = await guild.fetch_channel(requestor_channel)
-        if not isinstance(channel, discord.TextChannel):
+        if not isinstance(channel, discord.abc.Messageable):
             raise errors.InvalidInvocationError()
 
         await channel.send(embed=embed)
