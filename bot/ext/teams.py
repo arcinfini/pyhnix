@@ -1,59 +1,55 @@
-import typing, enum, logging
+import enum
+import logging
+import typing
+from typing import TYPE_CHECKING
 
-from discord.ext import commands
-from discord import app_commands, Interaction
+import asyncpg
+import discord
 import discord.ui as dui
-import discord, asyncpg
+from discord import app_commands
+from discord.ext import commands
+from discord.utils import get
 
+from bot import errors
+from bot.client import Phoenix
+from bot.team import Team
 
-from internal import client, errors
-from internal.utils import GuildInteraction
-
-from internal.teams import Team, GuildTeamsCache
-
+if TYPE_CHECKING:
+    from bot.utils.types import Interaction
 
 logger = logging.getLogger(__name__)
 
-"""
-team create
-team members [add/remove] @member teamname
-
-team info teamname
-team edit teamname
-
-"""
-
 
 class MemberAction(enum.Enum):
+    """An enum that determines an action taken on a command."""
+
     add = 0
     remove = 1
     edit = 2
 
 
 class TeamUserEditView(dui.View):
-    def __init__(self, team):
+    """A view provided when editing multiple users in a team."""
+
+    def __init__(self, team: Team):
         super().__init__()
         self.team = team
 
     @dui.select(cls=dui.UserSelect, min_values=0, max_values=10)
     async def _user_select(
         self, interaction: Interaction, select: dui.UserSelect
-    ):
-        """
-        The select provided in the team user editor view. This does not respond
-        and is instead used in the button codes.
-        """
+    ) -> None:
+        """Defer the interaction with thinking False.
 
+        This allows the interaction to proceed.
+        """
         await interaction.response.defer(thinking=False)
 
     @dui.button(label="Add to team")
-    async def _add_team(self, interaction: Interaction, button: dui.Button):
-        """
-        The button provided in the team user editor view that adds the selected
-        members to the team. This iterates over the selected members and both
-        adds them to the team in the database and gives them the team role
-        """
-
+    async def _add_team(
+        self, interaction: Interaction, button: dui.Button
+    ) -> None:
+        """Add the selected member(s) to a team."""
         await interaction.response.defer(ephemeral=True)
 
         for member in self._user_select.values:
@@ -63,25 +59,21 @@ class TeamUserEditView(dui.View):
                         server member"
                 )
 
-            if member.get_role(self.team.member_roleid) is not None:
+            if member.get_role(self.team.member_role_id) is not None:
                 continue
 
             await self.team.add_member(member)
             await member.add_roles(
-                discord.Object(self.team.member_roleid), reason="add to team"
+                discord.Object(self.team.member_role_id), reason="add to team"
             )
 
         await interaction.followup.send("Members edited", ephemeral=True)
 
     @dui.button(label="Remove from Team")
-    async def _remove_team(self, interaction: Interaction, button: dui.Button):
-        """
-        The button provided in the team user editor view that removes the
-        selected members to the team. This iterates over the selected members
-        and both removes them from the team in the database and removes the team
-        role from them
-        """
-
+    async def _remove_team(
+        self, interaction: Interaction, button: dui.Button
+    ) -> None:
+        """Remove the selected member(s) from a team."""
         await interaction.response.defer(ephemeral=True)
 
         for member in self._user_select.values:
@@ -91,12 +83,12 @@ class TeamUserEditView(dui.View):
                         server member"
                 )
 
-            if member.get_role(self.team.member_roleid) is None:
+            if member.get_role(self.team.member_role_id) is None:
                 continue
 
             await self.team.remove_member(member)
             await member.remove_roles(
-                discord.Object(self.team.member_roleid),
+                discord.Object(self.team.member_role_id),
                 reason="remove from team",
             )
 
@@ -104,68 +96,69 @@ class TeamUserEditView(dui.View):
 
 
 class TeamTransformer(app_commands.Transformer):
-    async def transform(
-        self, interaction: GuildInteraction, value: str
-    ) -> Team:
-        """
-        Converts the value (team name) into a team. Makes use of force_fetch
-        to ensure the up-to-date database values are used
-        """
+    """A transformer for Teams."""
 
-        teams = await Main.teams.force_fetch(interaction.guild)
-        team = teams.get(value)
+    async def transform(self, interaction: "Interaction", value: str) -> Team:
+        """Transform the value into a team."""
+        if interaction.guild is None:
+            raise errors.InvalidInvocationError
+
+        client = interaction.client
+        team_guild = client.get_team_guild(interaction.guild)
+
+        teams = await team_guild.fetch_teams()
+        team = get(teams, name=value)
 
         if team is None:
             raise errors.TransformationError(
-                content="Team with name '%s' not found in database" % value
+                content="Team with name '%s' not found." % value
             )
 
         return team
 
-    async def autocomplete(self, interaction: GuildInteraction, value: str):
-        """
-        Returns an `app_commands.Choice` object with choices of the teams in
-        the guild the autocomplete is being used in
-        """
+    async def autocomplete(  # type: ignore[override]
+        self,
+        interaction: "Interaction",
+        value: str,  # type: ignore[override]
+    ) -> list[app_commands.Choice[str]]:
+        """Return a list of valid choices for the user to pick."""
+        if interaction.guild is None:
+            raise errors.InvalidInvocationError
 
-        teams = await Main.teams.fetch(interaction.guild)
-        contains = lambda x: value in x
-        x = lambda k: app_commands.Choice(name=k, value=k)
-        return [x(value) for value in filter(contains, teams.keys())]
+        client = interaction.client
+        team_guild = client.get_team_guild(interaction.guild)
+
+        teams = await team_guild.fetch_teams()
+
+        def contains(x: Team) -> bool:
+            return value in x.name
+
+        def make_choice(x: Team) -> app_commands.Choice[str]:
+            return app_commands.Choice(name=x.name, value=x.name)
+
+        return [make_choice(value) for value in filter(contains, teams)]
 
 
 @app_commands.default_permissions(manage_roles=True)
 class Main(commands.Cog, name="Teams"):
-    def __init__(self, bot: client.Phoenix):
-        self.bot = bot
-        Main.teams = GuildTeamsCache(bot)
+    """A module containing functionality for teams."""
+
+    def __init__(self, client: Phoenix) -> None:
+        self.client = client
 
     async def team_info(self, team: Team) -> discord.Embed:
-        """
-        Creates a simple embed of team info to return
-        """
-
-        embed = discord.Embed(
+        """Create a simple embed of team info to return."""
+        return discord.Embed(
             title="Team Info", description=await team.define_info()
         )
 
-        return embed
-
     def can_administrate_teams(self, member: discord.Member) -> bool:
-        """
-        Checks if the member is an administrator and therefore can administrate
-        teams
-        """
-
+        """Check if the member can administrate teams."""
         return member.guild_permissions.administrator
 
     def can_control_team(self, member: discord.Member, team: Team) -> bool:
-        """
-        Checks if the member is an administrator or if they have the respective
-        team lead role
-        """
-
-        return team.lead_roleid in [
+        """Check if the member can control teams."""
+        return team.lead_role_id in [
             r.id for r in member.roles
         ] or self.can_administrate_teams(member)
 
@@ -176,9 +169,10 @@ class Main(commands.Cog, name="Teams"):
             r.id for r in member.roles
         ] or self.can_administrate_teams(member)
 
-    async def interaction_check(self, interaction: GuildInteraction):
-        """
-        member needs to have manage role permissions or administrator
+    async def interaction_check(self, interaction: "Interaction") -> bool:  # type: ignore[override]
+        """Pass this check through the module.
+
+        Member needs to have manage role permissions or administrator
         or to have the team lead role of the team they are attempting to manage
 
         the bot also needs to have the ability to manage roles
@@ -194,13 +188,10 @@ class Main(commands.Cog, name="Teams"):
     @team.command(name="clean")
     async def _clean(
         self,
-        interaction: Interaction,
+        interaction: "Interaction",
         team: app_commands.Transform[Team, TeamTransformer],
-    ):
-        """
-        Retreives all the members of a team and removes them from it
-        """
-
+    ) -> None:
+        """Retreive all the members of a team and remove them from it."""
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -209,7 +200,7 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_administrate_teams(interaction.user):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
@@ -223,8 +214,8 @@ class Main(commands.Cog, name="Teams"):
                 await team.remove_member(discord.Object(member_id))
 
                 member = await interaction.guild.fetch_member(member_id)
-                await member.remove_roles(discord.Object(team.member_roleid))
-            except:
+                await member.remove_roles(discord.Object(team.member_role_id))
+            except Exception:
                 failed.append(member_id)
 
         failed_for = [f"<@{id}>" for id in failed]
@@ -240,15 +231,12 @@ class Main(commands.Cog, name="Teams"):
     )
     async def _create(
         self,
-        interaction: Interaction,
+        interaction: "Interaction",
         name: str,
         lead: discord.Role,
         role: discord.Role,
-    ):
-        """
-        Creates a new team for the guild
-        """
-
+    ) -> None:
+        """Create a new team for the guild."""
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -257,17 +245,18 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_administrate_teams(interaction.user):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
         try:
-            team = await self.teams.create_team(
-                interaction.guild, name=name, lead_role=lead, member_role=role
+            guild_team = interaction.client.get_team_guild(interaction.guild)
+            team = await guild_team.create_team(
+                name=name, lead_role=lead, member_role=role
             )
 
             await interaction.response.send_message(f"{team.name} was created")
-        except asyncpg.UniqueViolationError as e:
+        except asyncpg.UniqueViolationError:
             await interaction.response.send_message(
                 f"A team with name `{name}` already exists in this server"
             )
@@ -276,14 +265,13 @@ class Main(commands.Cog, name="Teams"):
     @app_commands.describe(team="The name of the team")
     async def _delete(
         self,
-        interaction: Interaction,
+        interaction: "Interaction",
         team: app_commands.Transform[Team, TeamTransformer],
-    ):
-        """
-        Deletes a team from the guild. Asks for clarification.
-        Can only be done by server administrators
-        """
+    ) -> None:
+        """Delete a team from the guild.
 
+        Asks for clarification. Can only be done by server administrators
+        """
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -292,7 +280,7 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_administrate_teams(interaction.user):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
@@ -309,17 +297,16 @@ class Main(commands.Cog, name="Teams"):
     )
     async def _edit(
         self,
-        interaction: Interaction,
+        interaction: "Interaction",
         team: app_commands.Transform[Team, TeamTransformer],
         lead: typing.Optional[discord.Role],
         role: typing.Optional[discord.Role],
         name: typing.Optional[str],
-    ):
-        """
-        Edits a team's properties.
-        Can only be done by server administrators
-        """
+    ) -> None:
+        """Edit a team's properties.
 
+        Can only be done by server administrators,
+        """
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -328,7 +315,7 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_administrate_teams(interaction.user):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
@@ -350,16 +337,15 @@ class Main(commands.Cog, name="Teams"):
     )
     async def _members(
         self,
-        interaction: Interaction,
+        interaction: "Interaction",
         action: MemberAction,
         user: discord.User,
         team: app_commands.Transform[Team, TeamTransformer],
-    ):
-        """
-        Adds or removes a member from the list of team members. Must be done by
-        a team lead or a member with administrative permissions.
-        """
+    ) -> None:
+        """Add or remove a member from the list of team members.
 
+        Must be done by a team lead or a member with administrative permissions.
+        """
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -368,7 +354,7 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_control_team(interaction.user, team):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
@@ -380,7 +366,7 @@ class Main(commands.Cog, name="Teams"):
             await team.add_member(member)
 
             await member.add_roles(
-                discord.Object(team.member_roleid), reason="add to team"
+                discord.Object(team.member_role_id), reason="add to team"
             )
 
             await interaction.response.send_message(
@@ -388,14 +374,13 @@ class Main(commands.Cog, name="Teams"):
                 allowed_mentions=discord.AllowedMentions.none(),
                 ephemeral=True,
             )
-            return
 
         elif action == MemberAction.remove:
             await team.remove_member(user)
 
             if member is not None:
                 await member.remove_roles(
-                    discord.Object(team.member_roleid),
+                    discord.Object(team.member_role_id),
                     reason="remove from team",
                 )
 
@@ -404,7 +389,6 @@ class Main(commands.Cog, name="Teams"):
                 allowed_mentions=discord.AllowedMentions.none(),
                 ephemeral=True,
             )
-            return
 
         elif action == MemberAction.edit:
             await interaction.response.send_message(
@@ -412,14 +396,10 @@ class Main(commands.Cog, name="Teams"):
                 ephemeral=True,
                 view=TeamUserEditView(team),
             )
-            return
 
     @team.command(name="list")
-    async def _list(self, interaction: Interaction):
-        """
-        Lists all the teams and short info of the guild
-        """
-
+    async def _list(self, interaction: "Interaction") -> None:
+        """List all the teams and short info of the guild."""
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -428,14 +408,15 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_administrate_teams(interaction.user):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
-        teams = await self.teams.force_fetch(interaction.guild)
+        guild_team = interaction.client.get_team_guild(interaction.guild)
+        teams = await guild_team.fetch_teams()
 
         embed = discord.Embed(title="Team List")
-        for team in teams.values():
+        for team in teams:
             embed.add_field(
                 name=team.name, value=await team.define_info(), inline=True
             )
@@ -446,13 +427,10 @@ class Main(commands.Cog, name="Teams"):
     @app_commands.describe(team="The name of the team")
     async def _info(
         self,
-        interaction: Interaction,
+        interaction: "Interaction",
         team: app_commands.Transform[Team, TeamTransformer],
-    ):
-        """
-        Provides info about the given team.
-        """
-
+    ) -> None:
+        """Send an embed with info about the team."""
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -461,7 +439,7 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_control_team(interaction.user, team):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
@@ -472,13 +450,10 @@ class Main(commands.Cog, name="Teams"):
     @team.command(name="memberlist")
     async def _memberlist(
         self,
-        interaction: Interaction,
+        interaction: "Interaction",
         team: app_commands.Transform[Team, TeamTransformer],
-    ):
-        """
-        Provides a list of members that belong to the team
-        """
-
+    ) -> None:
+        """Provide a list of members that belong to the team."""
         if interaction.guild is None or not isinstance(
             interaction.user, discord.Member
         ):
@@ -487,7 +462,7 @@ class Main(commands.Cog, name="Teams"):
             )
 
         if not self.can_control_team(interaction.user, team):
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have proper clearance to use this command"
             )
 
@@ -501,5 +476,6 @@ class Main(commands.Cog, name="Teams"):
         await interaction.response.send_message(result, ephemeral=True)
 
 
-async def setup(bot):
+async def setup(bot: Phoenix) -> None:
+    """Load the teams module."""
     await bot.add_cog(Main(bot))

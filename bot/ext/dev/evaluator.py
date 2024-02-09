@@ -3,49 +3,54 @@ import traceback
 from io import BytesIO
 from re import RegexFlag
 from re import compile as re_compile
+from typing import TYPE_CHECKING
 
 import discord
 import discord.ui as dui
-from discord import Interaction
 from discord.ext import commands
 
-from internal import client
+import bot.errors as errors
+from bot import client, constants
+from bot.utils import checks, is_bot_admin
+
+if TYPE_CHECKING:
+    from bot.utils.types import Context, Interaction
 
 logger = logging.getLogger(__name__)
 
-import internal.errors as errors
-from internal import checks
-from internal.utils import is_bot_admin
-
-CODESTRING = r".*(eval|aexec)\s+?(?P<markdown>`{3})?(?P<language>postgresql|sql|python|py)?\n?(?P<code>[\s\S]*)(?(markdown)`{3}|)\n?\s*(?P<content>[\s\S]*)"
+CODESTRING = (
+    constants.Client.prefix  # Provide the prefix
+    + r"*(eval|aexec)\s+?"  # Match eval or aexec with any whitespace following
+    r"(?P<markdown>`{3})?"  # Match the start of a markdown format or not
+    r"(?P<language>postgresql|sql|python|py)?\n?"  # Match language specifier
+    r"(?P<code>[\s\S]*)"  # Match code within content
+    r"(?(markdown)`{3}|)\n?\s*(?P<content>[\s\S]*)"
+)
 CODEPATTERN = re_compile(CODESTRING, RegexFlag.IGNORECASE)
 
 
 class ExecuteView(dui.View):
-    def __init__(self, *, execute_id, delete_id):
+    """A view to handle code executions."""
+
+    def __init__(self, *, execute_id: str, delete_id: str) -> None:
         super().__init__(timeout=None)
 
         self._execute.custom_id = execute_id
         self._delete.custom_id = delete_id
 
-    def format_dt(self, result="No Result"):
-        """
-        Returns the result formatted within a code block in discord markdown
-        """
-
+    def format_dt(self, result: str | None = "No Result") -> str:
+        """Encapsulate result with a code annotation."""
         return "```py\n%s```" % (result)
 
-    def __source(self, to_eval):
-        """
-        Defines the source of the code being evaluated
-        """
-
-        return f"async def __ex(message, interaction): " + "".join(
-            f"\n\t{l}" for l in to_eval.split("\n")
+    def __source(self, to_eval: str) -> str:
+        """Build the source of the code to be evaluated."""
+        return "async def __ex(message, interaction): " + "".join(
+            f"\n\t{line}" for line in to_eval.split("\n")
         )
 
-    async def interaction_check(self, interaction: Interaction) -> bool:
-        """
+    async def interaction_check(self, interaction: "Interaction") -> bool:
+        """Check the interaction for a valid call.
+
         Checks
             - the interaction message exists
             - the channel provided exists
@@ -54,7 +59,6 @@ class ExecuteView(dui.View):
             - if the user has clearance for code execution
             - the user running the interaction is the author of the code
         """
-
         if (
             (result_message := interaction.message) is None
             or (channel := interaction.channel) is None
@@ -76,7 +80,7 @@ class ExecuteView(dui.View):
         # if they do not then inform and then run the delete action
         if not is_bot_admin(interaction.user):
             await self._delete.callback(interaction)
-            raise errors.ClearanceError(
+            raise errors.InvalidAuthorizationError(
                 content="You do not have clearance to use this"
             )
 
@@ -97,13 +101,15 @@ class ExecuteView(dui.View):
         return False
 
     @dui.button(label="execute", style=discord.ButtonStyle.green)
-    async def _execute(self, interaction: Interaction, button: dui.Button):
-        """
+    async def _execute(
+        self, interaction: "Interaction", button: dui.Button
+    ) -> None:
+        """Eval the content within the code section.
+
         Extracts the code defined within the replied-to message connected to the
         view's message. Then runs the code and edits the interaction message
         with the updated result.
         """
-
         message = interaction.extras["eval_message"]
 
         match = CODEPATTERN.match(message.content)
@@ -121,22 +127,22 @@ class ExecuteView(dui.View):
         if language.lower() in ["postgresql", "sql"]:
             to_eval = (
                 "\tasync with interaction.client.database.acquire() as conn:\n"
-                + f"\t\treturn await conn.fetch('''{to_eval}''')"
+                f"\t\treturn await conn.fetch('''{to_eval}''')"
             )
 
         await interaction.response.defer()
 
         result = ""
         try:
-            exec(
-                f"async def __ex(message, interaction, content, local): "
-                + "".join(f"\n {l}" for l in to_eval.split("\n"))
+            exec(  # noqa: S102
+                "async def __ex(message, interaction, content, local): "
+                + "".join(f"\n {line}" for line in to_eval.split("\n"))
             )
 
             result = str(
                 await locals()["__ex"](message, interaction, content, locals())
             )
-        except Exception as e:
+        except Exception:
             result = self.__source(to_eval) + "\n\n" + traceback.format_exc()
         finally:
             formatted = self.format_dt(result)
@@ -156,11 +162,10 @@ class ExecuteView(dui.View):
             )
 
     @dui.button(label="delete", style=discord.ButtonStyle.red)
-    async def _delete(self, interaction: Interaction, button: dui.Button):
-        """
-        Deletes the eval result message
-        """
-
+    async def _delete(
+        self, interaction: "Interaction", button: dui.Button
+    ) -> None:
+        """Delete the eval result message."""
         if (message := interaction.message) is None:
             return
 
@@ -168,20 +173,15 @@ class ExecuteView(dui.View):
 
 
 class Main(commands.Cog, name="code"):
-    """
-    allows for code to be ran externally
-    """
+    """Allows for code to be ran externally."""
 
-    def __init__(self, bot: client.Phoenix):
+    def __init__(self, bot: client.Phoenix) -> None:
         self.bot = bot
 
         logger.info("%s initialized" % __name__)
 
-    async def cog_load(self):
-        """
-        Defines the view to be used as the handler for eval functions
-        """
-
+    async def cog_load(self) -> None:
+        """Build the view to be used as the handler for eval functions."""
         bot_user = self.bot.user
         if bot_user is None:
             raise errors.InitializationError(
@@ -198,20 +198,14 @@ class Main(commands.Cog, name="code"):
 
         self.bot.add_view(self.EVAL_VIEW)
 
-    async def cog_unload(self):
-        """
-        Unloads the EVAL_VIEW listener
-        """
-
+    async def cog_unload(self) -> None:
+        """Unload the EVAL_VIEW listener."""
         self.EVAL_VIEW.stop()
 
     @commands.command(aliases=["aexec"])
-    @checks.is_bot_admin()
-    async def eval(self, ctx: commands.Context, *, code: str | None = None):
-        """
-        Enables an eval view
-        """
-
+    @checks.bot_dev()
+    async def eval(self, ctx: "Context", *, code: str | None = None) -> None:
+        """Create an eval view."""
         if self.EVAL_VIEW is None:
             raise errors.InitializationError(
                 content="self.EVAL_VIEW should be defined but is not"
@@ -220,15 +214,17 @@ class Main(commands.Cog, name="code"):
         await ctx.reply("```...```", mention_author=False, view=self.EVAL_VIEW)
 
     @commands.command(name="lambda")
-    async def _lambda(self, ctx: commands.Context, *, code: str):
+    async def _lambda(self, ctx: "Context", *, code: str) -> None:
+        """Compute a simple lambda eval."""
         result = ""
         try:
-            result = eval(code)
+            result = eval(code)  # noqa: S307
         except Exception as e:
             result = str(e)
         finally:
             await ctx.reply(result or "success", mention_author=False)
 
 
-async def setup(bot):
+async def setup(bot: client.Phoenix) -> None:
+    """Load the evaluator module."""
     await bot.add_cog(Main(bot))

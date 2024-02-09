@@ -1,5 +1,5 @@
 version: "3.8"
-services:  
+services:
 
   database:
     container_name: pyhnix-postgres
@@ -9,8 +9,6 @@ services:
     volumes:
       - pyhnix-postgres:/var/lib/postgresql/data
     env_file: .env
-    ports:
-      - "5432:5432"
   
   bot:
     container_name: pyhnix-bot

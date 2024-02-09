@@ -1,16 +1,40 @@
-[tool.black]
-line-length = 80
-target-version = ['py310']
+[project]
+    name = "pyhnix"
+    requires-python = ">=3.11"
+    dynamic = ["version"]
 
-[tool.isort]
-line_length = 120
-profile = "black"
-skip_gitignore = true
+[tool.mypy]
+    python_version = "3.11"
 
-[tool.pyright]
-pythonVersion = "3.10"
-useLibraryCodeForTypes = true
-typeCheckingMode = "basic"
-ignore = [
-    'ext/embedbuilder.py'
-]
+    warn_return_any = true
+    ignore_missing_imports = true
+    warn_unused_configs = true
+    warn_unused_ignores = true
+    disallow_untyped_defs = true
+
+[tool.ruff]
+    src = ["bot"]
+    # extend-exclude = ["src/internal/check.py"]
+
+    line-length = 80
+    show-fixes = true
+
+[tool.ruff.lint]
+    select = ["ANN", "B", "C4", "D", "DTZ", "E", "F", "I", "ISC", "INT", "N", "PGH", "PIE", "Q", "RET", "RSE", "RUF", "S", "SIM", "T20", "TID", "UP", "W"]
+
+    ignore = [
+        "ANN101", "ANN204", "ANN401", 
+        "D100", "D104", "D107", "D203", "D213", "D415",
+        "E731",
+        "ISC001",
+        "N818",
+        "RUF006",
+        "UP007"
+    ]
+    extend-select = ["I001"]
+    ignore-init-module-imports = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["bot"]
+order-by-type = false
+case-sensitive = true
