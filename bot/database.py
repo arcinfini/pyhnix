@@ -1,10 +1,9 @@
 import logging
-from typing import Optional, TYPE_CHECKING, cast
+from typing import Optional, cast
 
 import asyncpg
 
-if TYPE_CHECKING:
-    from bot.utils.types import TeamData
+from bot.utils.types import TeamData
 
 _log = logging.getLogger(__name__)
 
@@ -70,7 +69,7 @@ class Database:
         lead_role_id: Optional[int] = None,
         member_role_id: Optional[int] = None,
         name: Optional[str] = None,
-    ) -> "TeamData":
+    ) -> TeamData:
         """Update a team's values.
 
         Makes used of coalesce which returns the first non-null value. This
@@ -109,7 +108,7 @@ class Database:
 
     async def create_team(
         self, guild_id: int, name: str, lead_role_id: int, member_role_id: int
-    ) -> "TeamData":
+    ) -> TeamData:
         """Create a team within the database and return the created data."""
         query = """
             INSERT INTO team (name, guildid, lead_roleid, member_roleid)
@@ -128,7 +127,7 @@ class Database:
 
         return cast(TeamData, data)
 
-    async def fetch_team(self, id: int) -> Optional["TeamData"]:
+    async def fetch_team(self, id: int) -> Optional[TeamData]:
         """Return possible data for a team."""
         query = """
             SELECT *
@@ -144,7 +143,7 @@ class Database:
 
         return cast(TeamData, data)
 
-    async def fetch_teams_from_guild(self, guild_id: int) -> list["TeamData"]:
+    async def fetch_teams_from_guild(self, guild_id: int) -> list[TeamData]:
         """Return a list of teams related to a guild."""
         query = """
             SELECT *
