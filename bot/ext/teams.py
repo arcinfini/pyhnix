@@ -37,7 +37,7 @@ class TeamUserEditView(dui.View):
 
     @dui.select(cls=dui.UserSelect, min_values=0, max_values=10)
     async def _user_select(
-        self, interaction: Interaction, select: dui.UserSelect
+        self, interaction: "Interaction", select: dui.UserSelect
     ) -> None:
         """Defer the interaction with thinking False.
 
@@ -47,7 +47,7 @@ class TeamUserEditView(dui.View):
 
     @dui.button(label="Add to team")
     async def _add_team(
-        self, interaction: Interaction, button: dui.Button
+        self, interaction: "Interaction", button: dui.Button
     ) -> None:
         """Add the selected member(s) to a team."""
         await interaction.response.defer(ephemeral=True)
@@ -71,7 +71,7 @@ class TeamUserEditView(dui.View):
 
     @dui.button(label="Remove from Team")
     async def _remove_team(
-        self, interaction: Interaction, button: dui.Button
+        self, interaction: "Interaction", button: dui.Button
     ) -> None:
         """Remove the selected member(s) from a team."""
         await interaction.response.defer(ephemeral=True)
