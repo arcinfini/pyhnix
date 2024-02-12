@@ -111,7 +111,7 @@ class Database:
     ) -> TeamData:
         """Create a team within the database and return the created data."""
         query = """
-            INSERT INTO team (name, guildid, lead_roleid, member_roleid)
+            INSERT INTO team (name, guild_id, lead_roleid, member_roleid)
             VALUES ($1, $2, $3, $4)
             RETURNING *;
         """
@@ -148,7 +148,7 @@ class Database:
         query = """
             SELECT *
             FROM team
-            WHERE guildid = $1
+            WHERE guild_id = $1
         """
 
         conn = self.__pool
