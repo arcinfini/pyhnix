@@ -1,4 +1,4 @@
-FROM postgres:16-alpine
+FROM postgres:14-alpine
 
 # This only works for new databases used in testing.
 # Production requires a different approach for altering the database.
