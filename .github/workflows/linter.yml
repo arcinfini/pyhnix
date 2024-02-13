@@ -1,4 +1,4 @@
-name: Reusable Python Lint
+name: Lint
 
 on: 
   workflow_call:
@@ -42,6 +42,5 @@ jobs:
       - name: Install Deps
         run: |
           poetry install --no-root
-
       - name: mypy check
         run: mypy .

@@ -1,0 +1,15 @@
+token-var = "MAIN_BOT_TOKEN"
+server = 465592556667928596
+bot-admins = [
+    229779964898181120
+]
+prefix = "!"
+
+[ids.roles]
+executive = 484489190801801218
+
+[ids.channels]
+schedule-requests = 1152411129465819207
+
+[ids.locations]
+error-logs = {server = 970761243277266944, channel = 1009624603942981742}
