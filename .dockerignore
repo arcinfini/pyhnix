@@ -1,14 +1,13 @@
 
-# setting files
-/.records
-/.venv
-/.vscode
+# all files that begin with .
+# this is a strong rule but it is a convention that 
+# should follow throughout the project
+.*/
 
 # python cache
 __pycache__/
 
-# env file
-.env
+
 
 # excess database files
 *.sqlite
@@ -17,6 +16,3 @@ __pycache__/
 docker-compose.yml
 Dockerfile
 
-# git files
-/.git
-.gitignore

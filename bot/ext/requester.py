@@ -1,74 +1,69 @@
-from re import compile as recompile
-from internal.client import Phoenix
-from discord.ext import commands
-from discord import app_commands, Interaction, ui as dui, TextStyle
 import discord
+from discord import Interaction, TextStyle, app_commands
+from discord import ui as dui
 
-from internal import errors
+from bot import constants, errors
+from bot.client import Phoenix
+from bot.gear import Gear
 
 
 class ScheduleModal(dui.Modal, title="Schedule Request"):
-    start_time = dui.TextInput(
+    """A modal to send for schedule requests."""
+
+    start_time: dui.TextInput = dui.TextInput(
         label="Start Time",
         style=TextStyle.short,
         placeholder="DOTW MM-DD(-YY) HH:MM AM/PM",
         default="Tuesday 12-01 10:00 PM",
     )
-    end_time = dui.TextInput(
+    end_time: dui.TextInput = dui.TextInput(
         label="End Time",
         style=TextStyle.short,
         placeholder="(MM-DD-YY) HH:MM AM/PM",
         default="11:00 PM",
     )
-    reason = dui.TextInput(
+    reason: dui.TextInput = dui.TextInput(
         label="1) What is this form being filled out for:",
         style=TextStyle.paragraph,
         placeholder="Ex: Overwatch Practice / Overwatch Away Game",
     )
-    reoccuring = dui.TextInput(
+    reoccuring: dui.TextInput = dui.TextInput(
         label="2) Is this reoccurring weekly:",
         style=TextStyle.short,
         placeholder="Yes or No",
     )
 
-    async def on_submit(self, interaction: Interaction[Phoenix]) -> None:
-        """
-        Send an embed to a channel that enables voting
-        """
-
+    async def on_submit(self, interaction: Interaction[Phoenix]) -> None:  # type: ignore[override]
+        """Send an embed to a channel that enables voting."""
         embed = discord.Embed(
             title="Room Schedule Request",
-            color=discord.Color.from_str("#00ff37"),
-        )
-
-        embed.add_field(name="Start", value=self.start_time.value, inline=True)
-        embed.add_field(name="End", value=self.end_time.value, inline=True)
-        embed.add_field(
-            name="Reoccurs", value=self.reoccuring.value, inline=True
+            color=discord.Color.from_str("#ffee00"),
+            description=f"```\n{self.reason.value}\n```",
         )
 
         embed.add_field(
-            name="Information",
-            value=f"```\n{self.reason.value}\n```",
-            inline=False,
+            name="Start at", value=self.start_time.value, inline=True
+        )
+        embed.add_field(
+            name="Finish at", value=self.end_time.value, inline=True
+        )
+        embed.add_field(
+            name="Reoccurs", value=self.reoccuring.value, inline=False
         )
 
         embed.set_author(
             name=interaction.user.display_name,
             icon_url=interaction.user.display_avatar,
         )
-        embed.set_footer(text="0/3")
 
-        requestor_channel = interaction.client.config["ids"]["channels"][
-            "schedule-requests"
-        ]
+        requestor_channel = constants.Channels.schedule_requests
 
         if (guild := interaction.guild) is None:
-            raise errors.InvalidInvocationError()
+            raise errors.InvalidInvocationError
 
         channel = await guild.fetch_channel(requestor_channel)
         if not isinstance(channel, discord.abc.Messageable):
-            raise errors.InvalidInvocationError()
+            raise errors.InvalidInvocationError
 
         await channel.send(embed=embed)
 
@@ -77,9 +72,8 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
         )
 
 
-class Main(commands.Cog, name="Schedule"):
-    def __init__(self, bot):
-        self.bot: Phoenix = bot
+class Main(Gear, name="Schedule"):
+    """Requests within the discord."""
 
     request = app_commands.Group(
         name="request",
@@ -88,7 +82,8 @@ class Main(commands.Cog, name="Schedule"):
     )
 
     @request.command(name="schedule")
-    async def _schedule(self, interaction: Interaction):
+    async def _schedule(self, interaction: Interaction) -> None:
+        """Request a schedule change."""
         modal = ScheduleModal()
 
         await interaction.response.send_modal(modal)
@@ -110,5 +105,6 @@ class Main(commands.Cog, name="Schedule"):
     # )
 
 
-async def setup(bot):
+async def setup(bot: Phoenix) -> None:
+    """Load the requester module."""
     await bot.add_cog(Main(bot))
