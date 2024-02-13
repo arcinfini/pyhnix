@@ -5,11 +5,11 @@ import asyncpg
 import discord
 import discord.ui as dui
 from discord import app_commands
-from discord.ext import commands
 from discord.utils import get
 
 from bot import errors
 from bot.client import Phoenix
+from bot.gear import Gear
 from bot.team import Team
 
 if TYPE_CHECKING:
@@ -130,7 +130,7 @@ class TeamTransformer(app_commands.Transformer):
 
 
 @app_commands.default_permissions(manage_roles=True)
-class Main(commands.Cog, name="Teams"):
+class Main(Gear, name="Teams"):
     """A module containing functionality for teams."""
 
     team = app_commands.Group(
@@ -152,9 +152,6 @@ class Main(commands.Cog, name="Teams"):
         guild_only=True,
     )
     team.add_command(manage)
-
-    def __init__(self, client: Phoenix) -> None:
-        self.client = client
 
     async def team_info(self, team: Team) -> discord.Embed:
         """Create a simple embed of team info to return."""

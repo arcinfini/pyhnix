@@ -1,10 +1,10 @@
 import discord
 from discord import Interaction, TextStyle, app_commands
 from discord import ui as dui
-from discord.ext import commands
 
 from bot import constants, errors
 from bot.client import Phoenix
+from bot.gear import Gear
 
 
 class ScheduleModal(dui.Modal, title="Schedule Request"):
@@ -72,11 +72,8 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
         )
 
 
-class Main(commands.Cog, name="Schedule"):
+class Main(Gear, name="Schedule"):
     """Requests within the discord."""
-
-    def __init__(self, bot: Phoenix) -> None:
-        self.bot = bot
 
     request = app_commands.Group(
         name="request",
