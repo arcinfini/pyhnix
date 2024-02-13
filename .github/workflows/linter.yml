@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 jobs:
-  lint:
+  style-check:
     runs-on: ubuntu-latest
     steps:
 
@@ -13,14 +13,35 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.11'
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.7.1
 
       - name: Install Deps
         run: |
-          pip install -r requirements.txt
+          poetry install --no-root
       
-      - name: Run Pyright
-        uses: jakebailey/pyright-action@v1
+      - name: ruff check
+        run: ruff check .
 
-      - name: black
+      - name: ruff format 
+        run: ruff format . --check
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: checkout
+        uses: actions/checkout@v3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+      - uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.7.1
+
+      - name: Install Deps
         run: |
-          black . --config pyproject.toml --check
+          poetry install --no-root
+
+      - name: mypy check
+        run: mypy .
