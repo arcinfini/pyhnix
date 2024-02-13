@@ -33,7 +33,7 @@ class Database:
             id,
         )
 
-        return [m["userid"] for m in members]
+        return [m["user_id"] for m in members]
 
     async def add_member_to_team(self, team_id: int, user_id: int) -> None:
         """Insert a user id into a team."""
