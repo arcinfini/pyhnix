@@ -1,3 +1,5 @@
 FROM postgres:16-alpine
 
-COPY sql-scripts ./
+# This only works for new databases used in testing.
+# Production requires a different approach for altering the database.
+COPY sql-scripts /docker-entrypoint-initdb.d

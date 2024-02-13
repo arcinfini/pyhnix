@@ -22,9 +22,9 @@ class Database:
         """Select a list of member ids within a team."""
         _log.debug("fetch members in %d", id)
         query = """
-            SELECT userid
+            SELECT user_id
             FROM team_member
-            WHERE teamid = $1
+            WHERE team_id = $1
         """
 
         conn = self.__pool
@@ -39,7 +39,7 @@ class Database:
         """Insert a user id into a team."""
         _log.debug("add %d to %d", user_id, team_id)
         query = """
-            INSERT INTO team_member (teamid, userid)
+            INSERT INTO team_member (team_id, user_id)
             VALUES ($1, $2)
             ON CONFLICT DO NOTHING;
         """
@@ -52,7 +52,7 @@ class Database:
         _log.debug("remove %d from %d", user_id, team_id)
         query = """
             DELETE FROM team_member
-            WHERE teamid = $1 AND userid = $2;
+            WHERE team_id = $1 AND user_id = $2;
         """
 
         conn = self.__pool
@@ -78,8 +78,8 @@ class Database:
         query = """
             UPDATE team SET
                 name = COALESCE($1, name),
-                lead_roleid = COALESCE($2, lead_roleid),
-                member_roleid = COALESCE($3, member_roleid)
+                lead_role_id = COALESCE($2, lead_role_id),
+                member_role_id = COALESCE($3, member_role_id)
             WHERE id = $4
             RETURNING *
         """
@@ -111,7 +111,7 @@ class Database:
     ) -> TeamData:
         """Create a team within the database and return the created data."""
         query = """
-            INSERT INTO team (name, guild_id, lead_roleid, member_roleid)
+            INSERT INTO team (name, guild_id, lead_role_id, member_role_id)
             VALUES ($1, $2, $3, $4)
             RETURNING *;
         """

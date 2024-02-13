@@ -22,7 +22,7 @@ CODESTRING = (
     constants.Client.prefix  # Provide the prefix
     + r"*(eval|aexec)\s+?"  # Match eval or aexec with any whitespace following
     r"(?P<markdown>`{3})?"  # Match the start of a markdown format or not
-    r"(?P<language>postgresql|sql|python|py)?\n?"  # Match language specifier
+    r"(?P<language>python|py)?\n?"  # Match language specifier
     r"(?P<code>[\s\S]*)"  # Match code within content
     r"(?(markdown)`{3}|)\n?\s*(?P<content>[\s\S]*)"
 )
@@ -123,12 +123,6 @@ class ExecuteView(dui.View):
         language = match.group("language")
         to_eval = match.group("code")
         content = match.group("content")
-
-        if language.lower() in ["postgresql", "sql"]:
-            to_eval = (
-                "\tasync with interaction.client.database.acquire() as conn:\n"
-                f"\t\treturn await conn.fetch('''{to_eval}''')"
-            )
 
         await interaction.response.defer()
 

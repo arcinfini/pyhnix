@@ -109,6 +109,8 @@ class PhoenixTree(CommandTree):
         ).format_notif_embed(interaction)
         await self.respond(interaction, embed=embed, ephemeral=True)
 
+        await super().on_error(interaction, error)
+
     async def alert(
         self, interaction: Interaction, error: AppCommandError
     ) -> None:
