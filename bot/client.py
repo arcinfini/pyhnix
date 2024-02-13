@@ -80,6 +80,7 @@ class Phoenix(commands.Bot):
             asyncio.create_task(shutdown())
 
         self.loop.add_signal_handler(signal.SIGINT, lambda: signal_handler())
+        self.loop.add_signal_handler(signal.SIGTERM, lambda: signal_handler())
 
     async def __load_extensions(self, folder: Path) -> None:
         """Iterate over the extension folder to load all python files."""
