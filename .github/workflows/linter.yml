@@ -46,5 +46,5 @@ jobs:
       - name: Install Deps
         run: |
           poetry install --no-root
-      - name: poetry run mypy check
-        run: mypy .
+      - name: mypy check
+        run: poetry run mypy .
