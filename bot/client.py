@@ -151,7 +151,7 @@ class Phoenix(commands.Bot):
         return team_guild
 
     async def on_command_error(  # type: ignore[override]
-        self, context: Context, error: commands.CommandError
+        self, context: "Context", error: commands.CommandError
     ) -> None:
         """Inform the user of the error if it is an internal error.
 
@@ -186,6 +186,6 @@ class Phoenix(commands.Bot):
         return await super().on_command_error(context, error)
 
     async def alert(
-        self, interaction: Context, error: commands.CommandError
+        self, interaction: "Context", error: commands.CommandError
     ) -> None:
         """TODO."""

@@ -19,7 +19,7 @@ _log = logging.getLogger(__name__)
 class PhoenixTree(CommandTree):
     """The custom class for the command tree with the client."""
 
-    async def interaction_check(self, interaction: Interaction) -> bool:
+    async def interaction_check(self, interaction: "Interaction") -> bool:
         """Return true after logging the interaction being used."""
         if (command := interaction.command) is not None:
             _log.debug(
@@ -36,7 +36,7 @@ class PhoenixTree(CommandTree):
         self.__commands_cache: dict = {}
 
     async def respond(
-        self, interaction: Interaction, *args: Any, **kwargs: Any
+        self, interaction: "Interaction", *args: Any, **kwargs: Any
     ) -> None:
         """Either respond or send a followup on an interaction response."""
         if interaction.response.is_done():
@@ -76,7 +76,7 @@ class PhoenixTree(CommandTree):
                 self.add_command(command, guild=guild)
 
     async def on_error(
-        self, interaction: Interaction, error: AppCommandError
+        self, interaction: "Interaction", error: AppCommandError
     ) -> None:
         """Inform the user of the error if it is an internal error.
 
@@ -111,6 +111,6 @@ class PhoenixTree(CommandTree):
         await super().on_error(interaction, error)
 
     async def alert(
-        self, interaction: Interaction, error: AppCommandError
+        self, interaction: "Interaction", error: AppCommandError
     ) -> None:
         """TODO."""
