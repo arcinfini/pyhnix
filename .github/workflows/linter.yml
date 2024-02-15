@@ -1,7 +1,11 @@
 name: Lint
 
 on: 
-  workflow_call:
+  pull_request: 
+    types: 
+      - opened
+      - reopened
+      - synchronize
 
 jobs:
   style-check:
@@ -22,10 +26,10 @@ jobs:
           poetry install --no-root
       
       - name: ruff check
-        run: ruff check .
+        run: poetry run ruff check .
 
       - name: ruff format 
-        run: ruff format . --check
+        run: poetry run ruff format . --check
   type-check:
     runs-on: ubuntu-latest
     steps:
@@ -43,4 +47,4 @@ jobs:
         run: |
           poetry install --no-root
       - name: mypy check
-        run: mypy .
+        run: poetry run mypy .
