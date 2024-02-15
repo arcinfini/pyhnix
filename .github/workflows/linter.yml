@@ -26,10 +26,10 @@ jobs:
           poetry install --no-root
       
       - name: ruff check
-        run: ruff check .
+        run: poetry run ruff check .
 
       - name: ruff format 
-        run: ruff format . --check
+        run: poetry run ruff format . --check
   type-check:
     runs-on: ubuntu-latest
     steps:
@@ -46,5 +46,5 @@ jobs:
       - name: Install Deps
         run: |
           poetry install --no-root
-      - name: mypy check
+      - name: poetry run mypy check
         run: mypy .
