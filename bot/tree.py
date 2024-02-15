@@ -4,7 +4,6 @@ from typing import Any, Optional, TYPE_CHECKING
 import discord
 from discord import app_commands
 from discord.app_commands import AppCommandError, CommandTree
-from discord.interactions import Interaction
 
 from bot import errors
 
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
     from discord.abc import Snowflake
     from discord.enums import AppCommandType
 
-    from .client import Phoenix
+    from bot.utils.types import Interaction
 
 _log = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ class PhoenixTree(CommandTree):
         self.__commands_cache: dict = {}
 
     async def respond(
-        self, interaction: Interaction["Phoenix"], *args: Any, **kwargs: Any
+        self, interaction: Interaction, *args: Any, **kwargs: Any
     ) -> None:
         """Either respond or send a followup on an interaction response."""
         if interaction.response.is_done():
@@ -77,7 +76,7 @@ class PhoenixTree(CommandTree):
                 self.add_command(command, guild=guild)
 
     async def on_error(
-        self, interaction: Interaction["Phoenix"], error: AppCommandError
+        self, interaction: Interaction, error: AppCommandError
     ) -> None:
         """Inform the user of the error if it is an internal error.
 
@@ -90,13 +89,13 @@ class PhoenixTree(CommandTree):
 
             await self.alert(interaction, error)
 
-        if isinstance(error, errors.InternalError):
+        elif isinstance(error, errors.InternalError):
             embed = error.format_notif_embed(interaction)
             await self.respond(interaction, embed=embed, ephemeral=True)
 
             return
 
-        if isinstance(error, app_commands.CheckFailure):
+        elif isinstance(error, app_commands.CheckFailure):
             user_shown_error = errors.CheckFailure(content=str(error))
 
             embed = user_shown_error.format_notif_embed(interaction)

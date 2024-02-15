@@ -3,14 +3,14 @@ import logging
 import os
 import signal
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import asyncpg
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from bot import constants
+from bot import constants, errors
 from bot.database import Database
 from bot.team import TeamGuild
 from bot.tree import PhoenixTree
@@ -19,6 +19,9 @@ from bot.utils.cache import Cache
 _log = logging.getLogger(__name__)
 
 load_dotenv()
+
+if TYPE_CHECKING:
+    from bot.utils.types import Context
 
 
 class Phoenix(commands.Bot):
@@ -146,3 +149,43 @@ class Phoenix(commands.Bot):
         self.__team_guild_cache.put(guild.id, team_guild)
 
         return team_guild
+
+    async def on_command_error(  # type: ignore[override]
+        self, context: Context, error: commands.CommandError
+    ) -> None:
+        """Inform the user of the error if it is an internal error.
+
+        Known internal errors are propogated to the user. Cases where code has
+        failed, report the error to the user and alert devs.
+        """
+        if isinstance(error, commands.CommandInvokeError):
+            embed = errors.InternalError().format_notif_embed(context)
+            await context.send(embed=embed)
+
+            await self.alert(context, error)
+
+        elif isinstance(error, errors.InternalError):
+            embed = error.format_notif_embed(context)
+            await context.send(embed=embed)
+
+            return None
+
+        elif isinstance(error, commands.CheckFailure):
+            user_shown_error = errors.CheckFailure(content=str(error))
+
+            embed = user_shown_error.format_notif_embed(context)
+            await context.send(embed=embed)
+
+            return None
+
+        embed = errors.InternalError(
+            title=error.__class__.__name__, content=str(error)
+        ).format_notif_embed(context)
+        await context.send(embed=embed)
+
+        return await super().on_command_error(context, error)
+
+    async def alert(
+        self, interaction: Context, error: commands.CommandError
+    ) -> None:
+        """TODO."""
