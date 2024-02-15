@@ -1,12 +1,7 @@
 
 # TODO
 
-- [X] Install pre-commit
 - [ ] Add approve and deny buttons back to requester. these buttons alert the requester when the decision is made. The embed will have a different color on each status state
-
-# Issues
-
-- [ ] GuildNotFound conversion error not displayed to user in sync command
 
 # Contribution
 
