@@ -1,7 +1,11 @@
 name: Lint
 
 on: 
-  workflow_call:
+  pull_request: 
+    types: 
+      - opened
+      - reopened
+      - synchronize
 
 jobs:
   style-check:
