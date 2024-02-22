@@ -32,6 +32,11 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
         style=TextStyle.short,
         placeholder="Yes or No",
     )
+    pcs_needed: dui.TextInput = dui.TextInput(
+        label="3) Number of PCs needed:",
+        style=TextStyle.short,
+        placeholder="0",
+    )
 
     async def on_submit(self, interaction: Interaction[Phoenix]) -> None:  # type: ignore[override]
         """Send an embed to a channel that enables voting."""
@@ -48,7 +53,10 @@ class ScheduleModal(dui.Modal, title="Schedule Request"):
             name="Finish at", value=self.end_time.value, inline=True
         )
         embed.add_field(
-            name="Reoccurs", value=self.reoccuring.value, inline=False
+            name="Reoccurs", value=self.reoccuring.value, inline=True
+        )
+        embed.add_field(
+            name="PCs Needed", value=self.pcs_needed.value, inline=True
         )
 
         embed.set_author(
