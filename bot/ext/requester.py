@@ -1,83 +1,8 @@
-import discord
-from discord import Interaction, TextStyle, app_commands
-from discord import ui as dui
+from discord import Interaction, app_commands
 
-from bot import constants, errors
 from bot.client import Phoenix
 from bot.gear import Gear
-
-
-class ScheduleModal(dui.Modal, title="Schedule Request"):
-    """A modal to send for schedule requests."""
-
-    start_time: dui.TextInput = dui.TextInput(
-        label="Start Time",
-        style=TextStyle.short,
-        placeholder="DOTW MM-DD(-YY) HH:MM AM/PM",
-        default="Tuesday 12-01 10:00 PM",
-    )
-    end_time: dui.TextInput = dui.TextInput(
-        label="End Time",
-        style=TextStyle.short,
-        placeholder="(MM-DD-YY) HH:MM AM/PM",
-        default="11:00 PM",
-    )
-    reason: dui.TextInput = dui.TextInput(
-        label="1) What is this form being filled out for:",
-        style=TextStyle.paragraph,
-        placeholder="Ex: Overwatch Practice / Overwatch Away Game",
-    )
-    reoccuring: dui.TextInput = dui.TextInput(
-        label="2) Is this reoccurring weekly:",
-        style=TextStyle.short,
-        placeholder="Yes or No",
-    )
-    pcs_needed: dui.TextInput = dui.TextInput(
-        label="3) Number of PCs needed:",
-        style=TextStyle.short,
-        placeholder="0",
-    )
-
-    async def on_submit(self, interaction: Interaction[Phoenix]) -> None:  # type: ignore[override]
-        """Send an embed to a channel that enables voting."""
-        embed = discord.Embed(
-            title="Room Schedule Request",
-            color=discord.Color.from_str("#ffee00"),
-            description=f"```\n{self.reason.value}\n```",
-        )
-
-        embed.add_field(
-            name="Start at", value=self.start_time.value, inline=True
-        )
-        embed.add_field(
-            name="Finish at", value=self.end_time.value, inline=True
-        )
-        embed.add_field(
-            name="Reoccurs", value=self.reoccuring.value, inline=True
-        )
-        embed.add_field(
-            name="PCs Needed", value=self.pcs_needed.value, inline=True
-        )
-
-        embed.set_author(
-            name=interaction.user.display_name,
-            icon_url=interaction.user.display_avatar,
-        )
-
-        requestor_channel = constants.Channels.schedule_requests
-
-        if (guild := interaction.guild) is None:
-            raise errors.InvalidInvocationError
-
-        channel = await guild.fetch_channel(requestor_channel)
-        if not isinstance(channel, discord.abc.Messageable):
-            raise errors.InvalidInvocationError
-
-        await channel.send(embed=embed)
-
-        await interaction.response.send_message(
-            "Time Requested", ephemeral=True
-        )
+from bot.modals.schedule_modal import ScheduleModal
 
 
 class Main(Gear, name="Schedule"):
