@@ -3,10 +3,8 @@ services:
 
   database:
     container_name: pyhnix-postgres
-    build:
-      context: .
-      dockerfile: Dockerfile.database
-    hostname: pyhnix-postgres
+    image: postgres:16-alpine
+    hostname: postgres
     restart: always
     volumes:
       - pyhnix-postgres:/var/lib/postgresql/data
@@ -16,7 +14,7 @@ services:
     container_name: pyhnix-bot
     build:
       context: .
-      dockerfile: Dockerfile.bot
+      dockerfile: Dockerfile
     restart: "no"
     volumes:
       - pyhnix-logs:/app/bot/.records
