@@ -52,7 +52,7 @@ fi
 
 # create a virual environment. the bin of this venv will be used to execute pyhnix
 python3.11 -m venv venv
-venv/bin/activate && poetry install --no-root --no-dev -n && deactivate
+. venv/bin/activate && poetry install --no-root --no-dev -n && deactivate
 VENV_PYTHON=$(pwd)/venv/bin/python
 
 # Build Service
