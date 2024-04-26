@@ -6,8 +6,8 @@ if ! id pyhnix &> /dev/null; then
     sudo adduser pyhnix
 fi
 
-# Make the PWD owned by pyhnix
-sudo chown -R pyhnix .
+# Make the PWD owned by the user to work with
+sudo chown -R $USER .
 
 # check if python 3.11 exists if it doesnt then install it and create a symlink in /usr/bin
 if ! command -v python3.11 &> /dev/null; then
@@ -35,7 +35,7 @@ if ! command -v poetry &> /dev/null; then
         [Yy]* ) echo "installing poetry"
             POETRY_HOME=/usr/local/poetry
             
-            sudo mkdir -p $POETRY_HOME && sudo chown ec2-user $POETRY_HOME
+            sudo mkdir -p $POETRY_HOME && sudo chown $USER $POETRY_HOME
             python3 -m venv $POETRY_HOME/venv
             $POETRY_HOME/venv/bin/pip install -U pip setuptools
             $POETRY_HOME/venv/bin/pip install poetry
@@ -51,7 +51,8 @@ if ! command -v poetry &> /dev/null; then
 fi
 
 # create a virual environment. the bin of this venv will be used to execute pyhnix
-sudo runuser -l pyhnix -c 'python3.11 -m venv venv && venv/bin/activate && poetry install --no-root --no-dev -n && deactivate'
+python3.11 -m venv venv
+venv/bin/activate && poetry install --no-root --no-dev -n && deactivate
 VENV_PYTHON=$(pwd)/venv/bin/python
 
 # Build Service
@@ -75,6 +76,8 @@ EOF
 
 sudo mv pyhnix.service /etc/systemd/system/pyhnix.service
 sudo systemctl daemon-reload
+
+sudo chown -R pyhnix .
 
 echo "1. edit the project file to be owned by the pyhnix user."
 echo "2. validate the existence of an .env file in the project. Do not allow any permissions for non owners"
