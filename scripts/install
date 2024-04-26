@@ -6,6 +6,9 @@ if ! id pyhnix &> /dev/null; then
     sudo adduser pyhnix
 fi
 
+# Make the PWD owned by pyhnix
+sudo chown -R pyhnix .
+
 # check if python 3.11 exists if it doesnt then install it and create a symlink in /usr/bin
 if ! command -v python3.11 &> /dev/null; then
     echo "installing python 3.11"
