@@ -77,8 +77,9 @@ EOF
 sudo mv pyhnix.service /etc/systemd/system/pyhnix.service
 sudo systemctl daemon-reload
 
+touch .env
+chmod 660 .env
 sudo chown -R pyhnix .
 
-echo "1. edit the project file to be owned by the pyhnix user."
-echo "2. validate the existence of an .env file in the project. Do not allow any permissions for non owners"
-echo "3. enable + start the service"
+echo "1. Populate the .env file. Do not allow any permissions for non owners"
+echo "2. enable + start the service"
