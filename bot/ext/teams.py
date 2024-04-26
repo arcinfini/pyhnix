@@ -9,8 +9,8 @@ from discord.utils import get
 
 from bot import errors
 from bot.client import Phoenix
-from bot.gear import Gear
-from bot.team import Team
+from bot.model.gear import Gear
+from bot.model.team import Team
 
 if TYPE_CHECKING:
     from bot.utils.types import Interaction

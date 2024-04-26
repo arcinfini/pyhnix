@@ -4,7 +4,7 @@ from discord import ui as dui
 
 from bot import constants, errors
 from bot.client import Phoenix
-from bot.gear import Gear
+from bot.model.gear import Gear
 
 
 class ScheduleModal(dui.Modal, title="Schedule Request"):

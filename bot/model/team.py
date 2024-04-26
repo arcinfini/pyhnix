@@ -4,7 +4,7 @@ from typing import Optional, TYPE_CHECKING
 import discord
 
 from bot.database import Database
-from bot.utils import Cache
+from bot.model.cache import Cache
 
 logger = logging.getLogger(__name__)
 
