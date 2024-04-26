@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# ensure the pyhnix system user exists
+if ! id pyhnix &> /dev/null; then
+    echo "creating pyhnix system user"
+    sudo adduser pyhnix
+fi
+
+# check if python 3.11 exists if it doesnt then install it and create a symlink in /usr/bin
+if ! command -v python3.11 &> /dev/null; then
+    echo "installing python 3.11"
+    sudo yum install gcc openssl-devel bzip2-devel libffi-devel zlib-devel sqlite-devel
+    
+    curl https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz -o python3.11.9.tar.xz
+    tar xf python3.11.9.tar.xz
+
+    cd Python-3.11.9
+    ./configure --enable-optimizations --prefix=/usr/local/python/3.11
+
+    make
+    sudo make install
+    sudo ln -s /usr/local/python/3.11/bin/python3.11 /usr/bin/python3.11
+    cd ..
+    sudo rm -rf Python-3.11.9
+fi
+
+if ! command -v poetry &> /dev/null; then
+    echo "poetry could not be found, would you like to install it?"
+    read -rp "y/n: " answer
+
+    case $answer in
+        [Yy]* ) echo "installing poetry"
+            POETRY_HOME=/usr/local/poetry
+            
+            sudo mkdir -p $POETRY_HOME && sudo chown ec2-user $POETRY_HOME
+            python3 -m venv $POETRY_HOME/venv
+            $POETRY_HOME/venv/bin/pip install -U pip setuptools
+            $POETRY_HOME/venv/bin/pip install poetry
+
+            # revert ownership back to root
+            sudo chown -R root $POETRY_HOME
+
+            sudo ln -s /usr/local/poetry/venv/bin/poetry /usr/bin/poetry
+            ;;
+        [Nn]* ) echo "exiting" && exit;;
+        * ) echo "invalid response";;
+    esac
+fi
+
+# create a virual environment. the bin of this venv will be used to execute pyhnix
+python3.11 -m venv venv
+venv/bin/activate && poetry install --no-root --no-dev -n && deactivate
+VENV_PYTHON=$(pwd)/venv/bin/python
+
+# Build Service
+
+cat > pyhnix.service << EOF
+[Unit]
+Description=Runs the pyhnix bot
+Requires=network.target
+StartLimitBurst=5
+StartLimitIntervalSec=10
+
+[Service]
+User=pyhnix
+Type=simple
+Restart=on-failure
+ExecStart=$VENV_PYTHON -m bot
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo mv pyhnix.service /etc/systemd/system/pyhnix.service
+sudo systemctl daemon-reload
+
+echo "1. edit the project file to be owned by the pyhnix user."
+echo "2. validate the existence of an .env file in the project. Do not allow any permissions for non owners"
+echo "3. enable + start the service"
