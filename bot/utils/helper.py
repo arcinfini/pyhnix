@@ -25,7 +25,10 @@ async def get_or_fetch_channel(
     channel = bot.get_channel(channel_id)
 
     if channel is None:
-        channel = await bot.fetch_channel(channel_id)
+        try:
+            channel = await bot.fetch_channel(channel_id)
+        except (discord.NotFound, discord.Forbidden):
+            channel = None
 
     return channel
 
@@ -36,5 +39,5 @@ async def get_or_fetch_message(
     """Search for the message in the cache, otherwise fetch."""
     try:
         return await channel.fetch_message(message_id)
-    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+    except (discord.NotFound, discord.Forbidden):
         return None

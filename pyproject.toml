@@ -16,6 +16,8 @@
     ruff = "^0.2.1"
     mypy = "^1.8.0"
     pre-commit = "^3.6.1"
+    pytest = "^8.2.0"
+pytest-asyncio = "^0.23.6"
 
 [build-system]
     requires = ["poetry-core"]
@@ -51,6 +53,9 @@
     ]
     extend-select = ["I001"]
     ignore-init-module-imports = true
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/*" = ["D101", "D103", "E501", "S101", ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["bot"]

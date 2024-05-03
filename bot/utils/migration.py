@@ -15,21 +15,32 @@ class Migrator:
         self.kwargs = kwargs
         self.database: str = kwargs.pop("database")
 
+    async def __try_get_migrator(self) -> Connection:
+        """Try to get the __migration database.
+
+        Raises InvalidCatalogNameError if it does not exist.
+        """
+        return await connect(**self.kwargs, database="__migrations")
+
+    async def __create_migrator(self) -> Connection:
+        """Create the __migrations database if it does not exist."""
+        connection: Connection = await connect(
+            **self.kwargs, database="template1"
+        )
+
+        await connection.execute("CREATE DATABASE __migrations;")
+        await connection.close()
+
+        self.__migrator = await self.__try_get_migrator()
+        return self.__migrator
+
     async def __get_migrator(self) -> Connection:
         """Connect to the __migrations database and create if not existing."""
         if self.__migrator is None:
             try:
-                self.__migrator = await connect(
-                    **self.kwargs, database="__migrations"
-                )
+                self.__migrator = await self.__try_get_migrator()
             except InvalidCatalogNameError:
-                connection: Connection = await connect(
-                    **self.kwargs, database="template1"
-                )
-
-                await connection.execute("CREATE DATABASE __migrations;")
-                await connection.close()
-                self.__migrator = await self.__get_migrator()
+                self.__migrator = await self.__create_migrator()
 
             await self.__migrator.execute(
                 """
