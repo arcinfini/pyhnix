@@ -72,7 +72,7 @@ class Phoenix(commands.Bot):
         """Set up the client's extensions and graceful shutdown handler."""
         await self.__load_extensions(Path("bot/ext"))
         await self.ensure_database()
-        # await self.__check_migrations()
+        await self.__check_migrations()
 
         async def shutdown() -> None:
             _log.info("client is closing")
