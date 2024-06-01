@@ -5,8 +5,8 @@ import signal
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
-import asyncpg
 import discord
+from asyncpg import create_pool
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -71,8 +71,8 @@ class Phoenix(commands.Bot):
     async def setup_hook(self) -> None:
         """Set up the client's extensions and graceful shutdown handler."""
         await self.__load_extensions(Path("bot/ext"))
-        await self.__ensure_database()
-        await self.__check_migrations()
+        await self.ensure_database()
+        # await self.__check_migrations()
 
         async def shutdown() -> None:
             _log.info("client is closing")
@@ -84,8 +84,8 @@ class Phoenix(commands.Bot):
         def signal_handler() -> None:
             asyncio.create_task(shutdown())
 
-        self.loop.add_signal_handler(signal.SIGINT, lambda: signal_handler())
-        self.loop.add_signal_handler(signal.SIGTERM, lambda: signal_handler())
+        self.loop.add_signal_handler(signal.SIGINT, signal_handler)
+        self.loop.add_signal_handler(signal.SIGTERM, signal_handler)
 
     async def __load_extensions(self, folder: Path) -> None:
         """Iterate over the extension folder to load all python files."""
@@ -114,7 +114,7 @@ class Phoenix(commands.Bot):
             _log.exception("an error occurred while loading extension")
             return False
 
-    async def __ensure_database(self) -> Database:
+    async def ensure_database(self) -> Database:
         """Ensure the database is available through the pool connection.
 
         Uses env variables to connect to the postgres database through asyncpg.
@@ -125,7 +125,7 @@ class Phoenix(commands.Bot):
             return self.database
 
         _log.warn("Database connection: initializing")
-        pool = await asyncpg.create_pool(
+        pool = await create_pool(
             user=os.getenv("POSTGRES_USER"),
             password=os.getenv("POSTGRES_PASSWORD"),
             host=os.getenv("POSTGRES_HOST"),
