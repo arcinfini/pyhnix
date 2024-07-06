@@ -16,8 +16,8 @@ class Migrator:
         self.database: str = kwargs.pop("database")
 
     async def __get_migrator(self) -> Connection:
-        """Connect to the __migrations database and create if not existing."""
-        if self.__migrator is None:
+        """Connect to the __migrations database or create if not existing."""
+        if self.__migrator is None or self.__migrator.is_closed():
             try:
                 self.__migrator = await connect(
                     **self.kwargs, database="__migrations"
@@ -31,14 +31,17 @@ class Migrator:
                 await connection.close()
                 self.__migrator = await self.__get_migrator()
 
-            await self.__migrator.execute(
-                """
-                CREATE TABLE IF NOT EXISTS migrations (
-                    name TEXT NOT NULL,
-                    database TEXT NOT NULL
-                );
-                """
-            )
+        if self.__migrator is None:
+            raise Exception("failed to initialize migrator")
+
+        await self.__migrator.execute(
+            """
+            CREATE TABLE IF NOT EXISTS migrations (
+                name TEXT NOT NULL,
+                database TEXT NOT NULL
+            );
+            """
+        )
 
         return self.__migrator
 

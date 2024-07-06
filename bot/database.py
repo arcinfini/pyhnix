@@ -14,6 +14,11 @@ class Database:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self.__pool = pool
 
+    @property
+    def closed(self) -> bool:
+        """A bool indicating if the pool connection is closed."""
+        return self.__pool._closed  # type: ignore [no-any-return]
+
     async def close(self) -> None:
         """Close the pool connection."""
         await self.__pool.close()

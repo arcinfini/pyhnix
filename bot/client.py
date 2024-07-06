@@ -77,7 +77,7 @@ class Phoenix(commands.Bot):
         async def shutdown() -> None:
             _log.info("client is closing")
 
-            if self.__database:
+            if self.__database is not None:
                 await self.__database.close()
             await self.close()
 
@@ -118,10 +118,9 @@ class Phoenix(commands.Bot):
         """Ensure the database is available through the pool connection.
 
         Uses env variables to connect to the postgres database through asyncpg.
-        This bot requires on the use of postgres and will not function without
-        it.
+        This bot requires the use of postgres and will not function without it.
         """
-        if self.__database is not None:
+        if self.__database is not None and not self.__database.closed:
             return self.database
 
         _log.warn("Database connection: initializing")
@@ -134,7 +133,7 @@ class Phoenix(commands.Bot):
         )
 
         if pool is None:
-            raise Exception("Pool is somehow None")
+            raise Exception("Database failed to connect: pool not returned")
 
         self.__database = Database(pool)
         _log.warn("Database connection: initialized")
@@ -155,10 +154,8 @@ class Phoenix(commands.Bot):
         migration_scripts = Path("migrations")
 
         for file in migration_scripts.iterdir():
-            if file.name in migrations:
-                continue
-
-            await migrator.do_migration(file)
+            if file.name not in migrations:
+                await migrator.do_migration(file)
 
     def get_team_guild(self, guild: discord.Guild) -> TeamGuild:
         """Return a `TeamGuild` for the provided guild."""
