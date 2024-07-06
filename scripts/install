@@ -10,9 +10,10 @@ fi
 sudo chown -R $USER .
 
 # check if python 3.11 exists if it doesnt then install it and create a symlink in /usr/bin
+# openssl11-devel is required for python at least 3.10 + 
 if ! command -v python3.11 &> /dev/null; then
     echo "installing python 3.11"
-    sudo yum install gcc openssl-devel bzip2-devel libffi-devel zlib-devel sqlite-devel
+    sudo yum install gcc openssl11-devel bzip2-devel libffi-devel zlib-devel sqlite-devel
     
     curl https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz -o python3.11.9.tar.xz
     tar xf python3.11.9.tar.xz
@@ -46,16 +47,16 @@ if ! command -v poetry &> /dev/null; then
             sudo ln -s /usr/local/poetry/venv/bin/poetry /usr/bin/poetry
             ;;
         [Nn]* ) echo "exiting" && exit;;
-        * ) echo "invalid response";;
+        * ) echo "invalid response" && exit;;
     esac
 fi
 
 # create a virual environment. the bin of this venv will be used to execute pyhnix
 python3.11 -m venv venv
-. venv/bin/activate && poetry install --no-root --no-dev -n && deactivate
+. venv/bin/activate && poetry install --no-root --only main -n && deactivate
 VENV_PYTHON=$(pwd)/venv/bin/python
 
-# Build Service
+# Build Service, this requires that the code is stored in /opt/pyhinx
 
 cat > pyhnix.service << EOF
 [Unit]
@@ -68,6 +69,7 @@ StartLimitIntervalSec=10
 User=pyhnix
 Type=simple
 Restart=on-failure
+WorkingDirectory=/opt/pyhinx
 ExecStart=$VENV_PYTHON -m bot
 
 [Install]
