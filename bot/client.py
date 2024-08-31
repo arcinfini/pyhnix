@@ -15,7 +15,6 @@ from bot.database import Database
 from bot.model.cache import Cache
 from bot.model.team import TeamGuild
 from bot.tree import PhoenixTree
-from bot.utils.migration import Migrator
 
 _log = logging.getLogger(__name__)
 
@@ -72,7 +71,6 @@ class Phoenix(commands.Bot):
         """Set up the client's extensions and graceful shutdown handler."""
         await self.__load_extensions(Path("bot/ext"))
         await self.ensure_database()
-        await self.__check_migrations()
 
         async def shutdown() -> None:
             _log.info("client is closing")
@@ -139,23 +137,6 @@ class Phoenix(commands.Bot):
         _log.warn("Database connection: initialized")
 
         return self.database
-
-    async def __check_migrations(self) -> None:
-        """Check for incomplete migrations and complete them."""
-        migrator = Migrator(
-            user=os.getenv("POSTGRES_USER"),
-            password=os.getenv("POSTGRES_PASSWORD"),
-            host=os.getenv("POSTGRES_HOST"),
-            port=5432,
-            database=os.getenv("POSTGRES_DB"),
-        )
-
-        migrations = await migrator.get_migrations()
-        migration_scripts = Path("migrations")
-
-        for file in migration_scripts.iterdir():
-            if file.name not in migrations:
-                await migrator.do_migration(file)
 
     def get_team_guild(self, guild: discord.Guild) -> TeamGuild:
         """Return a `TeamGuild` for the provided guild."""
