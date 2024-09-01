@@ -23,12 +23,17 @@ class Migrator:
     ) -> None:
         self.__conn_kwargs = {
             "database": database,
-            "username": username,
+            "user": username,
             "password": password,
             "host": host,
             "port": port,
         }
-        self.__connection: asyncpg.Connection
+        self.__connection: asyncpg.Connection | None = None
+
+    async def close(self) -> None:
+        """Close the connection if it exists."""
+        if self.__connection is not None:
+            await self.__connection.close()
 
     async def __get_connection(self) -> asyncpg.Connection:
         """Get the connection or creates it."""
@@ -44,13 +49,12 @@ class Migrator:
         await conn.execute(
             """
             CREATE SCHEMA IF NOT EXISTS __arc_migrations;
-            CREATE TABLE __arc_migrations.__migrations (
+            CREATE TABLE IF NOT EXISTS __arc_migrations.__migrations (
                 file_name TEXT,
                 date TIMESTAMP DEFAULT NOW()
             );
             """
         )
-        await conn.commit()
 
         return conn
 
@@ -81,7 +85,12 @@ class Migrator:
         finally:
             migrator = await self.__get_connection()
             await migrator.execute(
-                "INSERT INTO migrations (file_name) VALUES ($1)", file.name
+                """
+                INSERT INTO __arc_migrations.__migrations
+                (file_name)
+                VALUES ($1)
+                """,
+                file.name,
             )
 
 
@@ -100,7 +109,12 @@ async def main() -> None:
 
     for file in migration_scripts.iterdir():
         if file.name not in migrations:
+            _log.debug("proceeding with migration %s", file)
             await migrator.do_migration(file)
+        else:
+            _log.debug("migration already issued %s", file)
+
+    await migrator.close()
 
 
 if __name__ == "__main__":
