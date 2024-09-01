@@ -2,4 +2,4 @@
 
 # Not so complex however it is best to use this.
 
-sudo runuser -l pyhnix -c "cd /opt/pyhnix && git pull && scripts/migrate.py"
+sudo runuser -l pyhnix -c "cd /opt/pyhnix && git pull && /opt/pyhnix/venv/bin/python scripts/migrate.py"
