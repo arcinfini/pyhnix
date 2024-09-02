@@ -49,10 +49,11 @@ class TeamUserEditView(dui.View):
                         server member"
                 )
 
+            await self.team.add_member(member)
+
             if member.get_role(self.team.member_role_id) is not None:
                 continue
 
-            await self.team.add_member(member)
             await member.add_roles(
                 discord.Object(self.team.member_role_id), reason="add to team"
             )
@@ -73,10 +74,11 @@ class TeamUserEditView(dui.View):
                         server member"
                 )
 
+            await self.team.remove_member(member)
+
             if member.get_role(self.team.member_role_id) is None:
                 continue
 
-            await self.team.remove_member(member)
             await member.remove_roles(
                 discord.Object(self.team.member_role_id),
                 reason="remove from team",
