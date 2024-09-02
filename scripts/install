@@ -15,6 +15,8 @@ if ! command -v python3.11 &> /dev/null; then
     echo "installing python 3.11"
     sudo yum install gcc openssl11-devel bzip2-devel libffi-devel zlib-devel sqlite-devel
     
+    (
+    cd "$(mktemp -d -t /tmp)"
     curl https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz -o python3.11.9.tar.xz
     tar xf python3.11.9.tar.xz
 
@@ -24,8 +26,7 @@ if ! command -v python3.11 &> /dev/null; then
     make
     sudo make install
     sudo ln -s /usr/local/python/3.11/bin/python3.11 /usr/bin/python3.11
-    cd ..
-    sudo rm -rf Python-3.11.9
+    )
 fi
 
 if ! command -v poetry &> /dev/null; then
