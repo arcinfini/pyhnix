@@ -2,8 +2,4 @@
 
 # Not so complex however it is best to use this.
 
-<<<<<<< HEAD
-sudo runuser -l pyhnix -c "cd /opt/pyhnix && git pull"
-=======
-sudo runuser -l pyhnix -c "cd /opt/pyhnix && git pull && /opt/pyhnix/venv/bin/python scripts/migrate.py"
->>>>>>> dev
+sudo runuser -l pyhnix -c "cd /opt/pyhnix && git pull && /opt/pyhnix/venv/bin/activate && poetry install --no-root && python scripts/migrate.py"
