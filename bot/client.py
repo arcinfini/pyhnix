@@ -69,7 +69,7 @@ class Phoenix(commands.Bot):
 
     async def setup_hook(self) -> None:
         """Set up the client's extensions and graceful shutdown handler."""
-        self.remove_command('help')
+        self.remove_command("help")
         await self.__load_extensions(Path("bot/ext"))
         await self.ensure_database()
 
@@ -159,7 +159,7 @@ class Phoenix(commands.Bot):
         failed, report the error to the user and alert devs.
         """
         if isinstance(error, commands.CommandNotFound):
-            return
+            return None
 
         if isinstance(error, commands.CommandInvokeError):
             embed = errors.InternalError().format_notif_embed(context)
