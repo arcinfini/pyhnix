@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Disable pyhnix.service
+# Stop pyhnix.service
+# Remove /opt/pyhnix
+# Remove /etc/systemd/system/pyhinx.service
+# If ran with --delete-volumes then delete the volumes within the compose file
