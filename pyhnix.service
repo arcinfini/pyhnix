@@ -1,0 +1,16 @@
+[Unit]
+Description=Run pyhnix
+Requires=network.target
+Requires=docker.service
+After=docker.service
+StartLimitBurst=5
+StartLimitIntervalSec=10
+
+[Service]
+WorkingDirectory=/opt/pyhnix
+Type=simple
+Restart=on-failure
+ExecStart=/usr/bin/docker compose --profile bot up
+
+[Install]
+WantedBy=multi-user.target

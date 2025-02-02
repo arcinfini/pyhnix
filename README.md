@@ -14,7 +14,6 @@ There are a few tools that this project uses. These need to be installed to deve
 
 ## Tools
 - [Docker](https://docs.docker.com/) and [Docker Compose](https://docs.docker.com/compose/)
-- [Pre-commit](https://pre-commit.com/#usage)
 - [Poetry](https://python-poetry.org/docs/)
 - [Ruff](https://docs.astral.sh/ruff/)
 - [Mypy](https://mypy.readthedocs.io/en/stable/)

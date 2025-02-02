@@ -1,88 +1,28 @@
 #!/bin/bash
 
-# ensure the pyhnix system user exists
-if ! id pyhnix &> /dev/null; then
-    echo "creating pyhnix system user"
-    sudo adduser pyhnix
-fi
+# Ensure docker
+# Build docker image for pyhnix with tag pyhnix
+# Copy docker-compose file to /opt/pyhnix/docker-compose.yml
+# Copy service file to /etc/systemd/system/pyhnix.service
+# Reload systemctl deamon
+# Enable pyhnix.service
+# Stop pyhnix.service if running
+# Start pyhnix.service
 
-# Make the PWD owned by the user to work with
-sudo chown -R $USER .
+DIR="$( dirname "${BASH_SOURCE[0]}" )"
 
-# check if python 3.11 exists if it doesnt then install it and create a symlink in /usr/bin
-# openssl11-devel is required for python at least 3.10 + 
-if ! command -v python3.11 &> /dev/null; then
-    echo "installing python 3.11"
-    sudo yum install gcc openssl11-devel bzip2-devel libffi-devel zlib-devel sqlite-devel
-    
-    (
-    cd "$(mktemp -d -t /tmp)"
-    curl https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz -o python3.11.9.tar.xz
-    tar xf python3.11.9.tar.xz
+( 
+cd $DIR/..
+/usr/bin/docker build -t pyhnix:v1 .
+sudo mkdir -p /opt/pyhnix
+sudo cp docker-compose.yml /opt/pyhnix/docker-compose.yml
+sudo cp .env /opt/pyhnix/.env
+sudo cp pyhnix.service /etc/systemd/system/pyhnix.service
+)
 
-    cd Python-3.11.9
-    ./configure --enable-optimizations --prefix=/usr/local/python/3.11
+# TODO: Run the migrater
 
-    make
-    sudo make install
-    sudo ln -s /usr/local/python/3.11/bin/python3.11 /usr/bin/python3.11
-    )
-fi
-
-if ! command -v poetry &> /dev/null; then
-    echo "poetry could not be found, would you like to install it?"
-    read -rp "y/n: " answer
-
-    case $answer in
-        [Yy]* ) echo "installing poetry"
-            POETRY_HOME=/usr/local/poetry
-            
-            sudo mkdir -p $POETRY_HOME && sudo chown $USER $POETRY_HOME
-            python3 -m venv $POETRY_HOME/venv
-            $POETRY_HOME/venv/bin/pip install -U pip setuptools
-            $POETRY_HOME/venv/bin/pip install poetry
-
-            # revert ownership back to root
-            sudo chown -R root $POETRY_HOME
-
-            sudo ln -s /usr/local/poetry/venv/bin/poetry /usr/bin/poetry
-            ;;
-        [Nn]* ) echo "exiting" && exit;;
-        * ) echo "invalid response" && exit;;
-    esac
-fi
-
-# create a virual environment. the bin of this venv will be used to execute pyhnix
-python3.11 -m venv venv
-. venv/bin/activate && poetry install --no-root --only main -n && deactivate
-VENV_PYTHON=$(pwd)/venv/bin/python
-
-# Build Service, this requires that the code is stored in /opt/pyhinx
-
-cat > pyhnix.service << EOF
-[Unit]
-Description=Runs the pyhnix bot
-Requires=network.target
-StartLimitBurst=5
-StartLimitIntervalSec=10
-
-[Service]
-User=pyhnix
-Type=simple
-Restart=on-failure
-WorkingDirectory=/opt/pyhinx
-ExecStart=$VENV_PYTHON -m bot
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo mv pyhnix.service /etc/systemd/system/pyhnix.service
 sudo systemctl daemon-reload
-
-touch .env
-chmod 660 .env
-sudo chown -R pyhnix .
-
-echo "1. Populate the .env file. Do not allow any permissions for non owners"
-echo "2. enable + start the service"
+sudo systemctl enable pyhnix.service
+sudo systemctl stop pyhnix.service
+sudo systemctl start pyhnix.service

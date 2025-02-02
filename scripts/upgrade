@@ -1,5 +1,9 @@
 #!/bin/bash
 
-# Not so complex however it is best to use this.
-
-sudo runuser -l pyhnix -c "cd /opt/pyhnix && git pull && /opt/pyhnix/venv/bin/activate && poetry install --no-root && python scripts/migrate.py"
+# Git Pull
+# Disable pyhnix.service
+# Run docker compose file with the database and preform database migrations
+# Copy service and compose file to desired locations
+# Reload systemctl daemon
+# Stop service if started
+# Start service
