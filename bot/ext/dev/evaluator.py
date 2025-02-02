@@ -208,6 +208,7 @@ class Main(commands.Cog, name="code"):
         await ctx.reply("```...```", mention_author=False, view=self.EVAL_VIEW)
 
     @commands.command(name="lambda")
+    @checks.bot_dev()
     async def _lambda(self, ctx: "Context", *, code: str) -> None:
         """Compute a simple lambda eval."""
         result = ""

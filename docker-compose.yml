@@ -1,4 +1,3 @@
-version: "3.8"
 services:
 
   database:
@@ -12,13 +11,12 @@ services:
   
   bot:
     container_name: pyhnix-bot
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: pyhnix:v1
     restart: "no"
     volumes:
       - pyhnix-logs:/app/bot/.records
     env_file: .env
+    profiles: [bot]
 
 volumes:
   pyhnix-postgres:
