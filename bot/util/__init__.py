@@ -1,6 +1,8 @@
 from enum import Enum
 from typing import Self
 
+from .singleton import SingletonBase as SingletonBase
+
 
 class Mode(Enum):
     """The modes the program can be ran in."""

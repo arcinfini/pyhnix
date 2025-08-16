@@ -58,7 +58,8 @@ async def main(args: argparse.Namespace) -> None:
             f"No token found in environment variable: {args.token_var}"
         )
 
-    client = Client(args)
+    client = Client()
+    client.mode = args.mode
     try:
         await client.start(token=token)
     except Exception:

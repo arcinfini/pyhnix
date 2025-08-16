@@ -18,8 +18,8 @@ class Gear(commands.Cog):
 
     async def cog_load(self) -> None:
         """Log the initialization of the cog."""
-        _log.info("Module loaded")
+        _log.info("Module loaded: %s", self.__module__)
 
     async def cog_unload(self) -> None:
         """Log the deinitialization of the cog."""
-        _log.info("Module unloaded")
+        _log.info("Module unloaded: %s", self.__module__)

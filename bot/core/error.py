@@ -3,13 +3,7 @@ from discord.ext import commands
 
 
 class InternalError(Exception):
-    """An internal error that servers as a wrapper around discord.py errors.
-
-    Extends
-    -------
-    `discord.ext.commands.CommandError`
-    `discord.app_commands.AppCommandError`
-    """
+    """An internal error that servers as a wrapper around discord.py errors."""
 
     title: str = "Internal Error"
     content: str = (
@@ -30,4 +24,4 @@ class InternalError(Exception):
 
     async def alert(self, info: commands.Context | Interaction) -> None:
         """Alert the bot dev channel of an exception."""
-        # TODOa
+        # TODO

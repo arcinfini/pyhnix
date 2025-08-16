@@ -2,7 +2,7 @@ from bot.core import Client, Gear
 
 
 class Main(Gear, name="Evaluator"):
-    """Evaluation Commands."""
+    """Code Evaluation Commands."""
 
 
 async def setup(bot: Client) -> None:

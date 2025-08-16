@@ -1,11 +1,10 @@
-import argparse
 from logging import getLogger
 from pathlib import Path
 
 from discord import AllowedMentions, Intents
 from discord.ext import commands
 
-from bot.util import Mode
+from bot.util import Mode, SingletonBase
 
 from . import error as errors
 from .tree import Tree
@@ -13,16 +12,16 @@ from .tree import Tree
 _log = getLogger(__name__)
 
 
-class Client(commands.Bot):
+class Client(commands.Bot, SingletonBase):
     """An extension of the discord client for custom implementation."""
 
-    def __init__(self, args: argparse.Namespace) -> None:
+    def __init__(self) -> None:
         intents = Intents.all()
         mentions = AllowedMentions.all()
         mentions.everyone = False
         mentions.roles = False
 
-        self.__args = args
+        self.__mode: Mode | None = None
 
         super().__init__(
             command_prefix="!",  # TODO HARDCODED
@@ -34,7 +33,16 @@ class Client(commands.Bot):
     @property
     def mode(self) -> Mode:
         """Return the mode the program is running in."""
-        return self.__args.mode
+        if self.__mode is None:
+            raise Exception(
+                "Client mode is not defined yet."
+            )  # TODO better error
+        return self.__mode
+
+    @mode.setter
+    def mode(self, v: Mode) -> None:
+        """Set the mode the program is running in."""
+        self.__mode = v
 
     async def load_extension(
         self, loc: str, *, package: str | None = None

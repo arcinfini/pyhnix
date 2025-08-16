@@ -1,4 +1,5 @@
 from logging import getLogger
+from typing import TYPE_CHECKING
 
 from discord import Interaction
 from discord.app_commands import AppCommandError, CommandTree
@@ -9,12 +10,20 @@ from . import errors
 
 _log = getLogger(__name__)
 
+if TYPE_CHECKING:
+    from . import Client
+
 
 class Tree(CommandTree):
     """An extension of the command tree for custom implementation."""
 
+    client: "Client"
+
     async def maybe_responded(
-        self, interaction: Interaction, *args, **kwargs # noqa: ANN002, ANN003
+        self,
+        interaction: Interaction,
+        *args,  # noqa: ANN002
+        **kwargs,  # noqa: ANN003
     ) -> None:
         """Send a response or edit an existing response.
 
@@ -32,16 +41,16 @@ class Tree(CommandTree):
             This function passes all kwargs provided to the response method.
 
         """
-        if interaction.response.is_done:
+        if interaction.response.is_done():
             await interaction.response.edit_message(*args, **kwargs)
             return
 
-        await interaction.response.send_message()
+        await interaction.response.send_message(*args, **kwargs)
 
     async def on_error(
         self, interaction: Interaction, error: AppCommandError
     ) -> None:
-        """Handle errors propogated in relation to textual commands."""
+        """Handle errors propogated in relation to application commands."""
         _log.exception(
             "an unhandled exception occured in command or event", error
         )
